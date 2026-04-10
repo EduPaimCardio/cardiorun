@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>CardioRun</title>
+  <style>
+    /* ───────────────────────────── RESET & BASE ───────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f172a;
+      --surface:   #1e293b;
+      --card:      #243047;
+      --walk:      #22d3ee;
+      --run:       #f97316;
+      --total:     #a78bfa;
+      --text:      #f1f5f9;
+      --muted:     #94a3b8;
+      --success:   #4ade80;
+      --danger:    #f43f5e;
+      --radius:    18px;
+      --shadow:    0 8px 32px rgba(0,0,0,.45);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      overflow-x: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 0 32px;
+    }
+
+    /* ───────────────────────────── HEADER ───────────────────────────── */
+    header {
+      width: 100%;
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      padding: 18px 20px 14px;
+      text-align: center;
+      border-bottom: 1px solid #334155;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h1 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      background: linear-gradient(90deg, var(--walk), var(--run));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    header p {
+      font-size: .75rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ───────────────────────────── LAYOUT ───────────────────────────── */
+    .container {
+      width: 100%;
+      max-width: 480px;
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ───────────────────────────── STATUS BADGE ───────────────────────────── */
+    .status-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px 20px;
+      border-radius: 50px;
+      font-size: .9rem;
+      font-weight: 700;
+      letter-spacing: .5px;
+      background: var(--surface);
+      border: 2px solid #334155;
+      transition: all .4s ease;
+    }
+    .status-badge.walk  { background: rgba(34,211,238,.12); border-color: var(--walk); color: var(--walk); }
+    .status-badge.run   { background: rgba(249,115,22,.12);  border-color: var(--run);  color: var(--run);  }
+    .status-badge.done  { background: rgba(74,222,128,.12);  border-color: var(--success); color: var(--success); }
+    .status-badge .dot  {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { transform: scale(1); opacity:1; }
+      50%      { transform: scale(1.6); opacity:.6; }
+    }
+    .status-badge.idle .dot { animation: none; background: var(--muted); }
+
+    /* ───────────────────────────── CARD BASE ───────────────────────────── */
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 20px 20px 18px;
+      box-shadow: var(--shadow);
+      border: 1px solid #2d3f58;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .card.total-card::before  { background: var(--total); }
+    .card.walk-card::before   { background: var(--walk);  }
+    .card.run-card::before    { background: var(--run);   }
+
+    /* ───────────────────────────── CARD LABEL ───────────────────────────── */
+    .card-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: .7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 12px;
+    }
+    .card-label .icon { font-size: 1.05rem; }
+    .total-card .card-label { color: var(--total); }
+    .walk-card  .card-label { color: var(--walk);  }
+    .run-card   .card-label { color: var(--run);   }
+
+    /* ───────────────────────────── TIMERS ROW ───────────────────────────── */
+    .timers-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    /* ───────────────────────────── TOTAL TIMER ───────────────────────────── */
+    .total-card {
+      text-align: center;
+    }
+    .total-display {
+      font-size: 3.8rem;
+      font-weight: 900;
+      letter-spacing: -1px;
+      color: var(--total);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 24px rgba(167,139,250,.4);
+    }
+    .total-sub {
+      font-size: .72rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* progress bar */
+    .progress-wrap {
+      margin-top: 14px;
+      background: #1e293b;
+      border-radius: 99px;
+      height: 8px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--total), var(--walk));
+      width: 0%;
+      transition: width .8s ease;
+    }
+
+    /* ───────────────────────────── INTERVAL TIMERS ───────────────────────────── */
+    .interval-display {
+      font-size: 2.4rem;
+      font-weight: 900;
+      letter-spacing: -1px;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+      text-shadow: 0 0 18px rgba(0,0,0,.4);
+    }
+    .walk-card  .interval-display { color: var(--walk); }
+    .run-card   .interval-display { color: var(--run);  }
+
+    .interval-sub {
+      text-align: center;
+      font-size: .68rem;
+      color: var(--muted);
+      margin-top: 5px;
+    }
+
+    /* active glow */
+    .card.active-phase {
+      box-shadow: var(--shadow), 0 0 0 2px currentColor;
+    }
+    .walk-card.active-phase { box-shadow: var(--shadow), 0 0 0 2px var(--walk), 0 0 24px rgba(34,211,238,.2); }
+    .run-card.active-phase  { box-shadow: var(--shadow), 0 0 0 2px var(--run),  0 0 24px rgba(249,115,22,.2);  }
+
+    /* ───────────────────────────── SETTINGS ───────────────────────────── */
+    .settings-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid #2d3f58;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .settings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      cursor: pointer;
+      background: #1e293b;
+      user-select: none;
+    }
+    .settings-header span {
+      font-size: .8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+    }
+    .settings-header .chevron {
+      color: var(--muted);
+      font-size: .85rem;
+      transition: transform .3s;
+    }
+    .settings-header.open .chevron { transform: rotate(180deg); }
+
+    .settings-body {
+      display: none;
+      padding: 16px 18px 18px;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .settings-body.open { display: flex; }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .setting-label {
+      font-size: .82rem;
+      color: var(--text);
+      flex: 1;
+    }
+    .setting-label small {
+      display: block;
+      color: var(--muted);
+      font-size: .68rem;
+      margin-top: 2px;
+    }
+    .setting-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-step {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      border: none;
+      background: #334155;
+      color: var(--text);
+      font-size: 1.2rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .2s, transform .1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-step:active { transform: scale(.9); background: #475569; }
+
+    .setting-value {
+      font-size: 1rem;
+      font-weight: 700;
+      min-width: 54px;
+      text-align: center;
+      color: var(--text);
+    }
+    /* color per setting */
+    .setting-row.total  .setting-value { color: var(--total); }
+    .setting-row.walk   .setting-value { color: var(--walk);  }
+    .setting-row.run    .setting-value { color: var(--run);   }
+    .setting-row.total  .btn-step { border: 1px solid rgba(167,139,250,.3); }
+    .setting-row.walk   .btn-step { border: 1px solid rgba(34,211,238,.3);  }
+    .setting-row.run    .btn-step { border: 1px solid rgba(249,115,22,.3);  }
+
+    /* ───────────────────────────── BUTTONS ───────────────────────────── */
+    .btn-main {
+      width: 100%;
+      padding: 18px;
+      border-radius: var(--radius);
+      border: none;
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all .25s ease;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: var(--shadow);
+    }
+    .btn-main:active { transform: scale(.97); }
+
+    .btn-start {
+      background: linear-gradient(135deg, #22d3ee, #0ea5e9);
+      color: #0f172a;
+    }
+    .btn-pause {
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      color: #0f172a;
+    }
+    .btn-resume {
+      background: linear-gradient(135deg, #4ade80, #22c55e);
+      color: #0f172a;
+    }
+    .btn-stop {
+      background: linear-gradient(135deg, #f43f5e, #e11d48);
+      color: #fff;
+    }
+
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .btn-row .btn-main { font-size: .88rem; padding: 15px; }
+
+    /* ───────────────────────────── ROUNDS INFO ───────────────────────────── */
+    .rounds-info {
+      display: flex;
+      justify-content: space-around;
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 14px 10px;
+      border: 1px solid #2d3f58;
+    }
+    .round-stat { text-align: center; }
+    .round-stat .val {
+      font-size: 1.6rem;
+      font-weight: 900;
+      color: var(--text);
+    }
+    .round-stat .lbl {
+      font-size: .65rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 2px;
+    }
+    .round-stat:nth-child(1) .val { color: var(--walk); }
+    .round-stat:nth-child(2) .val { color: var(--run);  }
+    .round-stat:nth-child(3) .val { color: var(--total);}
+
+    /* ───────────────────────────── TOAST ───────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: var(--text);
+      padding: 12px 24px;
+      border-radius: 50px;
+      font-size: .85rem;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+      z-index: 999;
+      box-shadow: 0 8px 32px rgba(0,0,0,.6);
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ───────────────────────────── BEEP INDICATOR ───────────────────────────── */
+    .beep-ring {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      border: 6px solid transparent;
+      border-radius: 0;
+      transition: border-color .1s, opacity .3s;
+      z-index: 500;
+      opacity: 0;
+    }
+    .beep-ring.flash { opacity: 1; border-color: var(--run); }
+
+    /* ───────────────────────────── LOCK SCREEN HINT ───────────────────────────── */
+    .hint {
+      text-align: center;
+      font-size: .7rem;
+      color: #475569;
+      padding: 0 20px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="beep-ring" id="beepRing"></div>
+
+<header>
+  <h1>🏃 CardioRun</h1>
+  <p>Treino de esteira — caminhada &amp; corrida</p>
+</header>
+
+<div class="container">
+
+  <!-- STATUS -->
+  <div class="status-badge idle" id="statusBadge">
+    <span class="dot"></span>
+    <span id="statusText">Aguardando início</span>
+  </div>
+
+  <!-- TOTAL TIMER -->
+  <div class="card total-card" id="totalCard">
+    <div class="card-label">
+      <span class="icon">⏱️</span> Tempo Total de Treino
+    </div>
+    <div class="total-display" id="totalDisplay">40:00</div>
+    <div class="total-sub">tempo restante</div>
+    <div class="progress-wrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+  </div>
+
+  <!-- INTERVAL TIMERS -->
+  <div class="timers-row">
+    <div class="card walk-card" id="walkCard">
+      <div class="card-label"><span class="icon">🚶</span> Caminhada</div>
+      <div class="interval-display" id="walkDisplay">02:00</div>
+      <div class="interval-sub" id="walkSub">intervalo</div>
+    </div>
+    <div class="card run-card" id="runCard">
+      <div class="card-label"><span class="icon">🏃</span> Corrida</div>
+      <div class="interval-display" id="runDisplay">01:00</div>
+      <div class="interval-sub" id="runSub">intervalo</div>
+    </div>
+  </div>
+
+  <!-- ROUNDS STATS -->
+  <div class="rounds-info" id="roundsInfo">
+    <div class="round-stat">
+      <div class="val" id="walkRounds">0</div>
+      <div class="lbl">🚶 Caminhadas</div>
+    </div>
+    <div class="round-stat">
+      <div class="val" id="runRounds">0</div>
+      <div class="lbl">🏃 Corridas</div>
+    </div>
+    <div class="round-stat">
+      <div class="val" id="totalRounds">0</div>
+      <div class="lbl">🔄 Ciclos</div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="settings-card" id="settingsCard">
+    <div class="settings-header" id="settingsToggle">
+      <span>⚙️ &nbsp;Configurações de Tempo</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="settings-body" id="settingsBody">
+
+      <div class="setting-row total">
+        <div class="setting-label">
+          ⏱️ Tempo Total
+          <small>duração do treino completo</small>
+        </div>
+        <div class="setting-control">
+          <button class="btn-step" onclick="adjustSetting('total',-5)">−</button>
+          <span class="setting-value" id="setTotal">40 min</span>
+          <button class="btn-step" onclick="adjustSetting('total',5)">+</button>
+        </div>
+      </div>
+
+      <div class="setting-row walk">
+        <div class="setting-label">
+          🚶 Intervalo Caminhada
+          <small>duração de cada período</small>
+        </div>
+        <div class="setting-control">
+          <button class="btn-step" onclick="adjustSetting('walk',-1)">−</button>
+          <span class="setting-value" id="setWalk">02 min</span>
+          <button class="btn-step" onclick="adjustSetting('walk',1)">+</button>
+        </div>
+      </div>
+
+      <div class="setting-row run">
+        <div class="setting-label">
+          🏃 Intervalo Corrida
+          <small>duração de cada período</small>
+        </div>
+        <div class="setting-control">
+          <button class="btn-step" onclick="adjustSetting('run',-1)">−</button>
+          <span class="setting-value" id="setRun">01 min</span>
+          <button class="btn-step" onclick="adjustSetting('run',1)">+</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MAIN CONTROLS -->
+  <button class="btn-main btn-start" id="btnStart" onclick="startWorkout()">
+    ▶ &nbsp; Iniciar Treino
+  </button>
+
+  <div class="btn-row" id="btnRow" style="display:none">
+    <button class="btn-main btn-pause" id="btnPause" onclick="pauseResume()">⏸ &nbsp;Pausar</button>
+    <button class="btn-main btn-stop"  onclick="stopWorkout()">■ &nbsp;Encerrar</button>
+  </div>
+
+  <p class="hint">💡 Mantenha a tela ativa durante o treino. O app emite bipes sonoros nas transições.</p>
+
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  STORAGE & SETTINGS
+// ══════════════════════════════════════════════════════════
+const STORAGE_KEY = 'cardiorun_settings_v2';
+
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (s) return s;
+  } catch(e) {}
+  return { totalMin: 40, walkMin: 2, runMin: 1 };
+}
+
+function saveSettings() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+}
+
+let settings = loadSettings();
+
+// ══════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════
+let state = {
+  running: false,
+  paused:  false,
+  phase:   'walk',       // 'walk' | 'run'
+  totalRemaining: 0,     // seconds
+  phaseRemaining: 0,     // seconds
+  walkRounds: 0,
+  runRounds:  0,
+  totalSec: 0,
+  intervalId: null,
+  wakeLock: null,
+};
+
+// ══════════════════════════════════════════════════════════
+//  AUDIO — Web Audio API (funciona offline no Android)
+// ══════════════════════════════════════════════════════════
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function beep(freq = 880, duration = 0.12, volume = 0.6, type = 'sine') {
+  const ctx = getAudioCtx();
+  const osc  = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, ctx.currentTime);
+  gain.gain.setValueAtTime(volume, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + duration + 0.05);
+}
+
+function playBeepSequence(count = 5, freq = 880, onDone) {
+  let i = 0;
+  const ring = document.getElementById('beepRing');
+
+  function next() {
+    if (i >= count) {
+      if (onDone) onDone();
+      return;
+    }
+    beep(freq, 0.15, 0.7, 'square');
+    ring.classList.add('flash');
+    setTimeout(() => ring.classList.remove('flash'), 150);
+    i++;
+    setTimeout(next, 300);
+  }
+  next();
+}
+
+// walk → corrida: tom mais agudo animado
+// run  → caminhada: tom mais grave
+function signalEndWalk() { playBeepSequence(5, 1046, () => startPhase('run')); }
+function signalEndRun()  { playBeepSequence(5, 523,  () => startPhase('walk')); }
+
+// ══════════════════════════════════════════════════════════
+//  WAKE LOCK (tela não apaga durante o treino)
+// ══════════════════════════════════════════════════════════
+async function acquireWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      state.wakeLock = await navigator.wakeLock.request('screen');
+    } catch(e) {}
+  }
+}
+function releaseWakeLock() {
+  if (state.wakeLock) { state.wakeLock.release(); state.wakeLock = null; }
+}
+
+// ══════════════════════════════════════════════════════════
+//  SETTINGS UI
+// ══════════════════════════════════════════════════════════
+document.getElementById('settingsToggle').addEventListener('click', () => {
+  const body = document.getElementById('settingsBody');
+  const hdr  = document.getElementById('settingsToggle');
+  body.classList.toggle('open');
+  hdr.classList.toggle('open');
+});
+
+function adjustSetting(type, delta) {
+  if (state.running) { showToast('⚠️ Pare o treino para alterar as configurações'); return; }
+
+  if (type === 'total') {
+    settings.totalMin = Math.max(5, Math.min(120, settings.totalMin + delta));
+    document.getElementById('setTotal').textContent = settings.totalMin + ' min';
+    document.getElementById('totalDisplay').textContent = formatTime(settings.totalMin * 60);
+  } else if (type === 'walk') {
+    settings.walkMin = Math.max(1, Math.min(30, settings.walkMin + delta));
+    document.getElementById('setWalk').textContent = pad(settings.walkMin) + ' min';
+    document.getElementById('walkDisplay').textContent = formatTime(settings.walkMin * 60);
+  } else if (type === 'run') {
+    settings.runMin = Math.max(1, Math.min(30, settings.runMin + delta));
+    document.getElementById('setRun').textContent = pad(settings.runMin) + ' min';
+    document.getElementById('runDisplay').textContent = formatTime(settings.runMin * 60);
+  }
+  saveSettings();
+}
+
+// ══════════════════════════════════════════════════════════
+//  WORKOUT CONTROL
+// ══════════════════════════════════════════════════════════
+function startWorkout() {
+  // Unlock audio on first gesture
+  getAudioCtx();
+
+  state.running       = true;
+  state.paused        = false;
+  state.phase         = 'walk';
+  state.totalRemaining = settings.totalMin * 60;
+  state.totalSec       = settings.totalMin * 60;
+  state.phaseRemaining = settings.walkMin * 60;
+  state.walkRounds    = 0;
+  state.runRounds     = 0;
+
+  document.getElementById('btnStart').style.display = 'none';
+  document.getElementById('btnRow').style.display   = 'grid';
+  document.getElementById('settingsCard').style.opacity = '.4';
+  document.getElementById('settingsCard').style.pointerEvents = 'none';
+  document.getElementById('walkRounds').textContent = '0';
+  document.getElementById('runRounds').textContent  = '0';
+  document.getElementById('totalRounds').textContent= '0';
+
+  acquireWakeLock();
+  setStatus('walk');
+  updatePhaseUI();
+  updateTotalUI();
+
+  state.intervalId = setInterval(tick, 1000);
+}
+
+function startPhase(phase) {
+  state.phase = phase;
+  state.phaseRemaining = (phase === 'walk' ? settings.walkMin : settings.runMin) * 60;
+
+  if (phase === 'walk') {
+    state.walkRounds++;
+    document.getElementById('walkRounds').textContent = state.walkRounds;
+  } else {
+    state.runRounds++;
+    document.getElementById('runRounds').textContent = state.runRounds;
+    document.getElementById('totalRounds').textContent = state.runRounds; // 1 ciclo = 1 corrida
+  }
+
+  setStatus(phase);
+  updatePhaseUI();
+}
+
+function tick() {
+  if (state.paused || !state.running) return;
+
+  state.totalRemaining--;
+  state.phaseRemaining--;
+
+  updateTotalUI();
+  updatePhaseUI();
+
+  // Fim do treino total
+  if (state.totalRemaining <= 0) {
+    finishWorkout();
+    return;
+  }
+
+  // Fim da fase atual
+  if (state.phaseRemaining <= 0) {
+    clearInterval(state.intervalId);
+    state.intervalId = null;
+
+    if (state.phase === 'walk') {
+      signalEndWalk();
+    } else {
+      signalEndRun();
+    }
+
+    // Retomar tick após os bipes (5 × 300ms + folga)
+    setTimeout(() => {
+      if (state.running && !state.paused) {
+        state.intervalId = setInterval(tick, 1000);
+      }
+    }, 1800);
+  }
+}
+
+function pauseResume() {
+  state.paused = !state.paused;
+  const btn = document.getElementById('btnPause');
+  if (state.paused) {
+    btn.textContent = '▶ Retomar';
+    btn.className = 'btn-main btn-resume';
+    setStatus('paused');
+  } else {
+    btn.textContent = '⏸ Pausar';
+    btn.className = 'btn-main btn-pause';
+    setStatus(state.phase);
+  }
+}
+
+function stopWorkout() {
+  if (!confirm('Encerrar o treino agora?')) return;
+  finishWorkout(true);
+}
+
+function finishWorkout(manual = false) {
+  clearInterval(state.intervalId);
+  state.intervalId = null;
+  state.running = false;
+  state.paused  = false;
+
+  releaseWakeLock();
+
+  document.getElementById('btnStart').style.display = 'block';
+  document.getElementById('btnRow').style.display   = 'none';
+  document.getElementById('settingsCard').style.opacity = '1';
+  document.getElementById('settingsCard').style.pointerEvents = 'auto';
+
+  // Reset displays
+  document.getElementById('totalDisplay').textContent = formatTime(settings.totalMin * 60);
+  document.getElementById('walkDisplay').textContent  = formatTime(settings.walkMin  * 60);
+  document.getElementById('runDisplay').textContent   = formatTime(settings.runMin   * 60);
+  document.getElementById('progressBar').style.width  = '0%';
+
+  walkCard.classList.remove('active-phase');
+  runCard.classList.remove('active-phase');
+
+  if (!manual) {
+    setStatus('done');
+    playBeepSequence(8, 1047);
+    showToast('🎉 Treino concluído! Parabéns!');
+  } else {
+    setStatus('idle');
+    showToast('⛔ Treino encerrado manualmente');
+  }
+
+  document.getElementById('btnStart').textContent = '▶  Novo Treino';
+}
+
+// ══════════════════════════════════════════════════════════
+//  UI UPDATES
+// ══════════════════════════════════════════════════════════
+const totalCard = document.getElementById('totalCard');
+const walkCard  = document.getElementById('walkCard');
+const runCard   = document.getElementById('runCard');
+
+function updateTotalUI() {
+  document.getElementById('totalDisplay').textContent = formatTime(state.totalRemaining);
+  const pct = ((state.totalSec - state.totalRemaining) / state.totalSec) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+}
+
+function updatePhaseUI() {
+  const t = formatTime(state.phaseRemaining);
+  if (state.phase === 'walk') {
+    document.getElementById('walkDisplay').textContent = t;
+    document.getElementById('walkSub').textContent    = 'tempo restante';
+    document.getElementById('runDisplay').textContent  = formatTime(settings.runMin * 60);
+    document.getElementById('runSub').textContent     = 'intervalo';
+    walkCard.classList.add('active-phase');
+    runCard.classList.remove('active-phase');
+  } else {
+    document.getElementById('runDisplay').textContent  = t;
+    document.getElementById('runSub').textContent     = 'tempo restante';
+    document.getElementById('walkDisplay').textContent = formatTime(settings.walkMin * 60);
+    document.getElementById('walkSub').textContent    = 'intervalo';
+    runCard.classList.add('active-phase');
+    walkCard.classList.remove('active-phase');
+  }
+}
+
+function setStatus(mode) {
+  const badge = document.getElementById('statusBadge');
+  const text  = document.getElementById('statusText');
+  badge.className = 'status-badge';
+  const map = {
+    walk:   ['walk',  '🚶 Caminhe agora!'],
+    run:    ['run',   '🏃 Corra agora!'],
+    paused: ['idle',  '⏸ Treino pausado'],
+    done:   ['done',  '✅ Treino concluído!'],
+    idle:   ['idle',  'Aguardando início'],
+  };
+  const [cls, msg] = map[mode] || map.idle;
+  badge.classList.add(cls);
+  text.textContent = msg;
+}
+
+// ══════════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════════
+function formatTime(sec) {
+  const m = Math.floor(Math.max(0, sec) / 60);
+  const s = Math.max(0, sec) % 60;
+  return pad(m) + ':' + pad(s);
+}
+function pad(n) { return String(n).padStart(2, '0'); }
+
+let toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ══════════════════════════════════════════════════════════
+//  INIT — apply saved settings to UI
+// ══════════════════════════════════════════════════════════
+(function init() {
+  document.getElementById('setTotal').textContent    = settings.totalMin + ' min';
+  document.getElementById('setWalk').textContent     = pad(settings.walkMin) + ' min';
+  document.getElementById('setRun').textContent      = pad(settings.runMin)  + ' min';
+  document.getElementById('totalDisplay').textContent = formatTime(settings.totalMin * 60);
+  document.getElementById('walkDisplay').textContent  = formatTime(settings.walkMin  * 60);
+  document.getElementById('runDisplay').textContent   = formatTime(settings.runMin   * 60);
+
+  // Reativa wake lock se voltar do background
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && state.running && !state.paused) {
+      acquireWakeLock();
+    }
+  });
+})();
+</script>
+</body>
+</html>
