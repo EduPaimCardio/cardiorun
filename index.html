@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>CardioRun</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { height:100%; font-family:'Segoe UI',Arial,sans-serif; background:#0d1117; color:#e6edf3; overflow:hidden; }
+  #app { display:flex; flex-direction:column; height:100%; padding:8px; }
+  .version { text-align:center; font-size:14px; color:#8b949e; padding:4px; }
+  .main { flex:1; display:flex; flex-direction:column; gap:8px; }
+
+  .tool { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:10px; }
+  .tool h2 { font-size:14px; color:#8b949e; text-align:center; margin-bottom:4px; }
+  .time { font-size:clamp(28px,8vw,64px); font-weight:bold; text-align:center; font-variant-numeric:tabular-nums; }
+
+  /* Ferramentas em destaque */
+  .highlight .time { color:#58a6ff; }
+  .highlight { border-color:#58a6ff; box-shadow:0 0 12px rgba(88,166,255,.3); }
+  .run .time { color:#f778ba; }
+
+  .controls { display:flex; justify-content:center; gap:8px; margin-top:6px; }
+  .controls button { background:#21262d; color:#e6edf3; border:1px solid #30363d; border-radius:8px; padding:6px 14px; font-size:18px; cursor:pointer; }
+  .controls button:active { background:#30363d; }
+
+  .bottom { display:flex; gap:8px; }
+  .bottom > .tool { flex:1; }
+
+  .actions { display:flex; gap:10px; padding:6px 0; }
+  .actions button { flex:1; font-size:20px; font-weight:bold; padding:14px; border:none; border-radius:12px; color:#fff; cursor:pointer; }
+  #startBtn { background:#238636; }
+  #stopBtn { background:#da3633; }
+  #startBtn:disabled,#stopBtn:disabled { opacity:.4; }
+
+  .phase { text-align:center; font-size:18px; font-weight:bold; padding:6px; min-height:32px; }
+
+  /* Flash luminoso */
+  #flash { position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:9999; }
+  #flash.active { animation:blink .4s steps(1) 10; }
+  @keyframes blink { 50% { opacity:.85; } }
+
+  /* Layout horizontal */
+  @media (orientation:landscape) {
+    .main { flex-direction:row; flex-wrap:wrap; }
+    #total { flex-basis:100%; order:1; }
+    .bottom { flex:1; order:2; flex-direction:row; align-items:stretch; }
+    .side { display:flex; flex-direction:column; justify-content:space-between; gap:8px; order:3; }
+    .actions { flex-direction:column; width:140px; }
+    .time { font-size:clamp(24px,6vw,56px); }
+  }
+</style>
+</head>
+<body>
+<div id="flash"></div>
+<div id="app">
+  <div class="version">Versao 1.0</div>
+
+  <div class="main">
+    <!-- 1ª ferramenta: Total -->
+    <div class="tool highlight" id="total">
+      <h2>Tempo Total de Treino</h2>
+      <div class="time" id="totalDisplay">45:00</div>
+      <div class="controls" data-tool="total">
+        <button data-delta="-60">−1min</button>
+        <button data-delta="60">+1min</button>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <!-- 2ª ferramenta: Caminhada -->
+      <div class="tool highlight" id="walk">
+        <h2>Caminhada</h2>
+        <div class="time" id="walkDisplay">02:00</div>
+        <div class="controls" data-tool="walk">
+          <button data-delta="-30">−30s</button>
+          <button data-delta="30">+30s</button>
+        </div>
+      </div>
+      <!-- 3ª ferramenta: Corrida -->
+      <div class="tool run" id="run">
+        <h2>Corrida</h2>
+        <div class="time" id="runDisplay">02:00</div>
+        <div class="controls" data-tool="run">
+          <button data-delta="-30">−30s</button>
+          <button data-delta="30">+30s</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase" id="phase"></div>
+
+  <div class="actions">
+    <button id="startBtn">▶ INICIAR</button>
+    <button id="stopBtn" disabled>■ PARAR (2x)</button>
+  </div>
+</div>
+
+<script>
+// ---------- Estado ----------
+const DEFAULTS = { total:45*60, walk:120, run:120 };
+let cfg = {
+  total: +(localStorage.getItem('total') ?? DEFAULTS.total),
+  walk:  +(localStorage.getItem('walk')  ?? DEFAULTS.walk),
+  run:   +(localStorage.getItem('run')   ?? DEFAULTS.run),
+};
+
+let running=false, timer=null;
+let totalLeft=0, phaseLeft=0, phase='walk';
+
+// ---------- Utilidades ----------
+const fmt = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+const $ = id => document.getElementById(id);
+
+function render(){
+  $('totalDisplay').textContent = fmt(running ? totalLeft : cfg.total);
+  $('walkDisplay').textContent  = (running && phase==='walk') ? fmt(phaseLeft) : fmt(cfg.walk);
+  $('runDisplay').textContent   = (running && phase==='run')  ? fmt(phaseLeft) : fmt(cfg.run);
+}
+
+function save(){ Object.keys(cfg).forEach(k=>localStorage.setItem(k,cfg[k])); }
+
+// ---------- Ajuste dos temporizadores ----------
+document.querySelectorAll('.controls').forEach(ctrl=>{
+  const tool = ctrl.dataset.tool;
+  ctrl.querySelectorAll('button').forEach(btn=>{
+    btn.onclick = ()=>{
+      if(running) return;
+      const min = tool==='total' ? 60 : 30;
+      cfg[tool] = Math.max(min, cfg[tool] + (+btn.dataset.delta));
+      save(); render();
+    };
+  });
+});
+
+// ---------- Sinais ----------
+let audioCtx;
+function beep(times){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    for(let i=0;i<times;i++){
+      const t = audioCtx.currentTime + i*0.35;
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.connect(g); g.connect(audioCtx.destination);
+      osc.frequency.value = 880; osc.type='square';
+      g.gain.setValueAtTime(0.001,t);
+      g.gain.exponentialRampToValueAtTime(0.4,t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+      osc.start(t); osc.stop(t+0.22);
+    }
+  }catch(e){}
+}
+function flash(){
+  const f=$('flash'); f.classList.remove('active'); void f.offsetWidth;
+  f.classList.add('active');
+  setTimeout(()=>f.classList.remove('active'),4000);
+}
+function signal(){ beep(5); flash(); if(navigator.vibrate) navigator.vibrate([200,100,200,100,200]); }
+
+// ---------- Loop do treino ----------
+function tick(){
+  totalLeft--;
+  phaseLeft--;
+
+  if(totalLeft<=0){ finish(); return; }
+
+  if(phaseLeft<=0){
+    signal();
+    phase = phase==='walk' ? 'run' : 'walk';
+    phaseLeft = phase==='walk' ? cfg.walk : cfg.run;
+  }
+  updatePhaseLabel();
+  render();
+}
+
+function updatePhaseLabel(){
+  $('phase').textContent = phase==='walk' ? '🚶 CAMINHADA' : '🏃 CORRIDA';
+  $('phase').style.color = phase==='walk' ? '#58a6ff' : '#f778ba';
+}
+
+function start(){
+  if(running) return;
+  running=true;
+  totalLeft=cfg.total; phase='walk'; phaseLeft=cfg.walk;
+  $('startBtn').disabled=true; $('stopBtn').disabled=false;
+  document.querySelectorAll('.controls button').forEach(b=>b.disabled=true);
+  updatePhaseLabel(); render();
+  requestWakeLock();
+  audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)(); // desbloqueia áudio
+  timer=setInterval(tick,1000);
+}
+
+function stop(){
+  running=false; clearInterval(timer);
+  $('startBtn').disabled=false; $('stopBtn').disabled=true;
+  document.querySelectorAll('.controls button').forEach(b=>b.disabled=false);
+  $('phase').textContent='';
+  releaseWakeLock();
+  render();
+}
+function finish(){
+  beep(5); flash();
+  stop();
+  $('phase').textContent='✅ TREINO CONCLUÍDO';
+  $('phase').style.color='#238636';
+}
+
+$('startBtn').onclick = start;
+
+// Parar: duplo toque em até 5s
+let lastStop=0;
+$('stopBtn').onclick = ()=>{
+  const now=Date.now();
+  if(now-lastStop<=5000){ stop(); lastStop=0; }
+  else { lastStop=now; $('stopBtn').textContent='■ CONFIRME (2x)';
+    setTimeout(()=>{ if(!running) return; $('stopBtn').textContent='■ PARAR (2x)'; },5000); }
+};
+
+// ---------- Impedir bloqueio de tela ----------
+let wakeLock=null;
+async function requestWakeLock(){
+  try{ if('wakeLock' in navigator) wakeLock=await navigator.wakeLock.request('screen'); }catch(e){}
+}
+function releaseWakeLock(){ try{ wakeLock&&wakeLock.release(); wakeLock=null; }catch(e){} }
+document.addEventListener('visibilitychange',()=>{ if(running&&document.visibilityState==='visible') requestWakeLock(); });
+
+render();
+</script>
+</body>
+</html>
