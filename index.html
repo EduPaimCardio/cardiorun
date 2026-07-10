@@ -1,248 +1,961 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#0d1b2a">
-<link rel="manifest" href="manifest.json">
-<title>Treino Cárdio</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  body {
-    font-family: system-ui, sans-serif;
-    background: #0d1b2a; color: #e0e1dd;
-    min-height: 100vh; padding: 16px;
-    display: flex; flex-direction: column; align-items: center;
-  }
-  h1 { font-size: 1.3rem; margin-bottom: 12px; color: #778da9; }
-  .flash-overlay {
-    position: fixed; inset: 0; background: #fff;
-    opacity: 0; pointer-events: none; z-index: 999;
-  }
-  .flash-overlay.active { animation: flash .4s steps(1) 10; }
-  @keyframes flash { 0%,100%{opacity:0} 50%{opacity:.85} }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="theme-color" content="#0f0f1a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Cardio Timer">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏃</text></svg>">
+    <title>Cardio Timer - Treino de Esteira</title>
+    <style>
+        :root {
+            --bg: #0f0f1a;
+            --card: #1a1a2e;
+            --card-alt: #16213e;
+            --accent: #ff6b35;
+            --walk: #00d2a0;
+            --run: #ff6b35;
+            --text: #e0e0e0;
+            --text-secondary: #999;
+            --danger: #e63946;
+            --flash: #ffe66d;
+            --radius: 16px;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        }
 
-  .card {
-    background: #1b263b; border-radius: 16px;
-    padding: 16px; margin-bottom: 12px; width: 100%; max-width: 480px;
-    border: 2px solid transparent; transition: border-color .3s;
-  }
-  .card.big { padding: 28px; }
-  .card.active-phase { border-color: #e63946; box-shadow: 0 0 20px rgba(230,57,70,.4); }
-  .card.walk.active-phase { border-color: #52b788; box-shadow: 0 0 20px rgba(82,183,120,.4); }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-  .label { font-size: .85rem; letter-spacing: 1px; text-transform: uppercase; color: #778da9; }
-  .card.big .label { font-size: 1rem; }
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-font-smoothing: antialiased;
+        }
 
-  .time-display { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .card.big .time-display { font-size: 3.4rem; }
-  .walk .time-display { color: #52b788; }
-  .run .time-display { color: #e63946; }
-  .total .time-display { color: #e0e1dd; }
+        /* ========== FLASH OVERLAY ========== */
+        #flash-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 230, 109, 0.7);
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+        #flash-overlay.active {
+            animation: flashPulse 0.5s ease-in-out 8;
+        }
+        @keyframes flashPulse {
+            0%,
+            100% {
+                opacity: 0;
+            }
+            50% {
+                opacity: 0.85;
+            }
+        }
 
-  .row { display: flex; justify-content: space-between; align-items: center; }
-  .adjust { display: flex; gap: 8px; margin-top: 10px; }
-  .adjust button {
-    flex: 1; background: #415a77; color: #fff; border: none;
-    padding: 10px; border-radius: 10px; font-size: 1rem; cursor: pointer;
-  }
-  .adjust button:active { background: #778da9; }
+        /* ========== MAIN CONTAINER ========== */
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 8px 12px;
+            gap: 6px;
+        }
 
-  .total-controls { display: flex; gap: 8px; margin-top: 10px; }
-  .total-controls button {
-    flex: 1; background: #415a77; color: #fff; border: none;
-    padding: 8px; border-radius: 8px; font-size: .9rem;
-  }
+        /* ========== HEADER ========== */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 4px 0;
+            flex-shrink: 0;
+        }
+        header .logo {
+            font-size: 1.6rem;
+        }
+        header h1 {
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: var(--text);
+            white-space: nowrap;
+        }
 
-  #startBtn {
-    width: 100%; max-width: 480px; padding: 18px;
-    font-size: 1.3rem; font-weight: 700; border: none; border-radius: 16px;
-    background: #52b788; color: #0d1b2a; cursor: pointer; margin-top: 8px;
-  }
-  #startBtn.running { background: #e63946; color: #fff; }
+        /* ========== TOTAL TIMER (smaller) ========== */
+        #total-timer-section {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-shrink: 0;
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 6px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        #total-timer-section .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-secondary);
+        }
+        #total-timer-display {
+            font-size: 1.6rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            font-family: 'SF Mono', 'JetBrains Mono', 'Consolas', monospace;
+            color: #fff;
+            min-width: 70px;
+            text-align: center;
+        }
+        #total-timer-section .adjust-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: transparent;
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+        #total-timer-section .adjust-btn:active {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        #total-timer-section .adjust-btn:disabled {
+            opacity: 0.3;
+            pointer-events: none;
+        }
 
-  .status { text-align: center; margin: 8px 0; font-size: 1.1rem; min-height: 1.4em; }
-  .cycles { text-align: center; color: #778da9; font-size: .9rem; }
-</style>
+        /* ========== MAIN TIMERS (walk & run) ========== */
+        #main-timers {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+            min-height: 0;
+        }
+        .timer-card {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius);
+            padding: 12px;
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            min-height: 0;
+        }
+        .timer-card.walking {
+            background: linear-gradient(145deg, #0a2a20, #0d3328);
+            border: 2px solid rgba(0, 210, 160, 0.3);
+        }
+        .timer-card.running {
+            background: linear-gradient(145deg, #2a1508, #331a0d);
+            border: 2px solid rgba(255, 107, 53, 0.3);
+        }
+        .timer-card.active-phase {
+            border-width: 3px;
+            transform: scale(1.02);
+            z-index: 2;
+        }
+        .timer-card.walking.active-phase {
+            border-color: var(--walk);
+            box-shadow: 0 0 30px rgba(0, 210, 160, 0.25);
+        }
+        .timer-card.running.active-phase {
+            border-color: var(--run);
+            box-shadow: 0 0 30px rgba(255, 107, 53, 0.25);
+        }
+        .timer-card .phase-icon {
+            font-size: 2rem;
+            margin-bottom: 2px;
+        }
+        .timer-card .phase-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .timer-card.walking .phase-label {
+            color: var(--walk);
+        }
+        .timer-card.running .phase-label {
+            color: var(--run);
+        }
+        .timer-card .time-display {
+            font-size: clamp(2.8rem, 8vw, 5rem);
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            font-family: 'SF Mono', 'JetBrains Mono', 'Consolas', monospace;
+            color: #fff;
+            line-height: 1;
+            letter-spacing: -1px;
+        }
+        .timer-card .time-settings {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .timer-card .adj-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            background: transparent;
+            color: #fff;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        .timer-card .adj-btn:active {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(0.92);
+        }
+        .timer-card .adj-btn:disabled {
+            opacity: 0.25;
+            pointer-events: none;
+        }
+        .timer-card .set-value {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            min-width: 50px;
+            text-align: center;
+        }
+
+        /* ========== STATUS BAR ========== */
+        #status-bar {
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            flex-shrink: 0;
+            min-height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        #status-bar .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        #status-bar .dot.walk {
+            background: var(--walk);
+        }
+        #status-bar .dot.run {
+            background: var(--run);
+        }
+        #status-bar .dot.idle {
+            background: var(--text-secondary);
+        }
+        #status-bar .dot.finished {
+            background: var(--flash);
+        }
+
+        /* ========== CONTROLS ========== */
+        #controls {
+            display: flex;
+            gap: 12px;
+            flex-shrink: 0;
+            padding: 4px 0 8px;
+            align-items: center;
+            justify-content: center;
+        }
+        #btn-start {
+            flex: 1;
+            max-width: 220px;
+            padding: 16px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4);
+        }
+        #btn-start:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 10px rgba(255, 107, 53, 0.3);
+        }
+        #btn-start.running-state {
+            background: #555;
+            box-shadow: none;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+        #btn-stop {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: transparent;
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        #btn-stop:active {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        #btn-stop.confirming {
+            border-color: var(--danger);
+            background: rgba(230, 57, 70, 0.2);
+            color: var(--danger);
+            animation: confirmPulse 0.8s ease-in-out infinite;
+            font-size: 0.65rem;
+            width: auto;
+            padding: 0 14px;
+            border-radius: 28px;
+            white-space: nowrap;
+        }
+        @keyframes confirmPulse {
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.5);
+            }
+            50% {
+                box-shadow: 0 0 0 12px rgba(230, 57, 70, 0);
+            }
+        }
+
+        /* ========== RESPONSIVE: PORTRAIT FALLBACK ========== */
+        @media (orientation: portrait) {
+            #main-timers {
+                flex-direction: column;
+            }
+            .timer-card .time-display {
+                font-size: clamp(2.2rem, 10vw, 3.5rem);
+            }
+            #total-timer-display {
+                font-size: 1.3rem;
+            }
+            header h1 {
+                font-size: 0.9rem;
+            }
+        }
+
+        /* ========== RESPONSIVE: VERY SMALL SCREENS ========== */
+        @media (max-height: 400px) {
+            #app {
+                padding: 4px 8px;
+                gap: 3px;
+            }
+            .timer-card {
+                padding: 6px;
+            }
+            .timer-card .time-display {
+                font-size: 2rem;
+            }
+            .timer-card .phase-icon {
+                font-size: 1.3rem;
+            }
+            .timer-card .phase-label {
+                font-size: 0.6rem;
+                letter-spacing: 1px;
+            }
+            .timer-card .adj-btn {
+                width: 28px;
+                height: 28px;
+                font-size: 1rem;
+            }
+            #total-timer-display {
+                font-size: 1.1rem;
+            }
+            #btn-start {
+                padding: 10px;
+                font-size: 0.9rem;
+            }
+            #btn-stop {
+                width: 40px;
+                height: 40px;
+                font-size: 0.65rem;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="flash-overlay" id="flash"></div>
-  <h1>🏃 Treino Cárdio na Esteira</h1>
 
-  <div class="status" id="status">Pronto para iniciar</div>
+    <!-- Flash overlay -->
+    <div id="flash-overlay"></div>
 
-  <!-- 2ª ferramenta: CAMINHADA (destaque) -->
-  <div class="card big walk" id="cardWalk">
-    <div class="label">🚶 Caminhada</div>
-    <div class="time-display" id="walkDisplay">02:00</div>
-    <div class="adjust">
-      <button data-t="walk" data-d="-30">− 30s</button>
-      <button data-t="walk" data-d="30">+ 30s</button>
+    <!-- App -->
+    <div id="app">
+        <!-- Header -->
+        <header>
+            <span class="logo">🏃</span>
+            <h1>CARDIO TIMER</h1>
+        </header>
+
+        <!-- Total Timer (smaller, less prominent) -->
+        <div id="total-timer-section">
+            <span class="label">TOTAL</span>
+            <button class="adjust-btn" id="total-minus" title="Reduzir 5 min">−</button>
+            <span id="total-timer-display">45:00</span>
+            <button class="adjust-btn" id="total-plus" title="Aumentar 5 min">+</button>
+        </div>
+
+        <!-- Main Timers: Walking & Running -->
+        <div id="main-timers">
+            <!-- Walking Card -->
+            <div class="timer-card walking" id="walk-card">
+                <span class="phase-icon">🚶</span>
+                <span class="phase-label">Caminhada</span>
+                <span class="time-display" id="walk-display">02:00</span>
+                <div class="time-settings">
+                    <button class="adj-btn" id="walk-minus" title="−30s">−</button>
+                    <span class="set-value" id="walk-set-value">2:00</span>
+                    <button class="adj-btn" id="walk-plus" title="+30s">+</button>
+                </div>
+            </div>
+
+            <!-- Running Card -->
+            <div class="timer-card running" id="run-card">
+                <span class="phase-icon">🏃‍♂️</span>
+                <span class="phase-label">Corrida</span>
+                <span class="time-display" id="run-display">01:00</span>
+                <div class="time-settings">
+                    <button class="adj-btn" id="run-minus" title="−30s">−</button>
+                    <span class="set-value" id="run-set-value">1:00</span>
+                    <button class="adj-btn" id="run-plus" title="+30s">+</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div id="status-bar">
+            <span class="dot idle" id="status-dot"></span>
+            <span id="status-text">Pronto para iniciar</span>
+        </div>
+
+        <!-- Controls -->
+        <div id="controls">
+            <button id="btn-start">▶ INICIAR</button>
+            <button id="btn-stop" disabled>⏹</button>
+        </div>
     </div>
-  </div>
 
-  <!-- 3ª ferramenta: CORRIDA (destaque) -->
-  <div class="card big run" id="cardRun">
-    <div class="label">🏃 Corrida</div>
-    <div class="time-display" id="runDisplay">01:00</div>
-    <div class="adjust">
-      <button data-t="run" data-d="-30">− 30s</button>
-      <button data-t="run" data-d="30">+ 30s</button>
-    </div>
-  </div>
+    <script>
+        (function() {
+            // ─────────────────────────────────────
+            // DOM ELEMENTS
+            // ─────────────────────────────────────
+            const $ = (sel) => document.querySelector(sel);
 
-  <!-- 1ª ferramenta: TEMPO TOTAL (menor) -->
-  <div class="card total" id="cardTotal">
-    <div class="row">
-      <span class="label">⏱ Tempo total</span>
-      <span class="time-display" id="totalDisplay" style="font-size:1.6rem">45:00</span>
-    </div>
-    <div class="total-controls">
-      <button data-t="total" data-d="-300">− 5min</button>
-      <button data-t="total" data-d="-60">− 1min</button>
-      <button data-t="total" data-d="60">+ 1min</button>
-      <button data-t="total" data-d="300">+ 5min</button>
-    </div>
-  </div>
+            const totalDisplay = $('#total-timer-display');
+            const walkDisplay = $('#walk-display');
+            const runDisplay = $('#run-display');
+            const walkSetValue = $('#walk-set-value');
+            const runSetValue = $('#run-set-value');
+            const walkCard = $('#walk-card');
+            const runCard = $('#run-card');
+            const flashOverlay = $('#flash-overlay');
+            const statusDot = $('#status-dot');
+            const statusText = $('#status-text');
+            const btnStart = $('#btn-start');
+            const btnStop = $('#btn-stop');
+            const totalMinus = $('#total-minus');
+            const totalPlus = $('#total-plus');
+            const walkMinus = $('#walk-minus');
+            const walkPlus = $('#walk-plus');
+            const runMinus = $('#run-minus');
+            const runPlus = $('#run-plus');
 
-  <div class="cycles" id="cycles"></div>
-  <button id="startBtn">▶ INICIAR</button>
+            // ─────────────────────────────────────
+            // AUDIO CONTEXT (lazy init)
+            // ─────────────────────────────────────
+            let audioCtx = null;
 
-<script>
-// ---------- Estado ----------
-const DEF = { total: 45*60, walk: 2*60, run: 1*60 };
-let cfg = {
-  total: +localStorage.getItem('total') || DEF.total,
-  walk:  +localStorage.getItem('walk')  || DEF.walk,
-  run:   +localStorage.getItem('run')   || DEF.run,
-};
+            function getAudioContext() {
+                if (!audioCtx) {
+                    audioCtx = new(window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                return audioCtx;
+            }
 
-let running = false;
-let phase = 'walk';        // fase atual quando rodando
-let totalRemain = 0;
-let phaseRemain = 0;
-let cycleCount = 0;
-let ticker = null;
+            function playBeep(frequency = 880, duration = 0.18, volume = 0.5) {
+                try {
+                    const ctx = getAudioContext();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.type = 'square';
+                    osc.frequency.value = frequency;
+                    gain.gain.setValueAtTime(volume, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + duration);
+                } catch (e) {
+                    // Audio not available — fail silently
+                }
+            }
 
-// ---------- Áudio ----------
-let audioCtx;
-function beep() {
-  if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-  // 5 bips
-  for (let i = 0; i < 5; i++) {
-    const t = audioCtx.currentTime + i * 0.25;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.frequency.value = 880;
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    gain.gain.setValueAtTime(0.001, t);
-    gain.gain.exponentialRampToValueAtTime(0.3, t + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-    osc.start(t); osc.stop(t + 0.2);
-  }
-}
+            function playBeepSequence(count = 5, intervalMs = 600) {
+                for (let i = 0; i < count; i++) {
+                    setTimeout(() => playBeep(880, 0.18, 0.5), i * intervalMs);
+                }
+            }
 
-function flash() {
-  const el = document.getElementById('flash');
-  el.classList.remove('active'); void el.offsetWidth;
-  el.classList.add('active');
-  if (navigator.vibrate) navigator.vibrate([200,100,200,100,200]);
-  setTimeout(() => el.classList.remove('active'), 4000);
-}
+            // ─────────────────────────────────────
+            // FLASH
+            // ─────────────────────────────────────
+            function triggerFlash(durationMs = 4000) {
+                flashOverlay.classList.add('active');
+                setTimeout(() => {
+                    flashOverlay.classList.remove('active');
+                }, durationMs);
+            }
 
-function signal() { beep(); flash(); }
+            // ─────────────────────────────────────
+            // STATE
+            // ─────────────────────────────────────
+            const STATE = {
+                IDLE: 'idle',
+                WALKING: 'walking',
+                TRANSITION_TO_RUN: 'transition_to_run',
+                RUNNING: 'running',
+                TRANSITION_TO_WALK: 'transition_to_walk',
+                FINISHED: 'finished',
+            };
 
-// ---------- Formatação ----------
-const fmt = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+            let currentState = STATE.IDLE;
+            let totalSeconds = 45 * 60; // default 45 min
+            let walkSeconds = 2 * 60; // default 2 min
+            let runSeconds = 1 * 60; // default 1 min
 
-function render() {
-  document.getElementById('totalDisplay').textContent = fmt(running ? totalRemain : cfg.total);
-  document.getElementById('walkDisplay').textContent  = fmt(running && phase==='walk' ? phaseRemain : cfg.walk);
-  document.getElementById('runDisplay').textContent   = fmt(running && phase==='run'  ? phaseRemain : cfg.run);
+            // Runtime tracking
+            let workoutStartTime = null;
+            let phaseStartTime = null;
+            let phaseDuration = 0; // current phase duration in seconds
+            let transitionEndTime = null;
+            let timerInterval = null;
+            let stopPressTimer = null;
+            let stopFirstPressTime = null;
+            let totalElapsedBeforePause = 0; // not used here — total runs continuously
 
-  document.getElementById('cardWalk').classList.toggle('active-phase', running && phase==='walk');
-  document.getElementById('cardRun').classList.toggle('active-phase', running && phase==='run');
-}
+            // ─────────────────────────────────────
+            // PERSISTENCE (localStorage)
+            // ─────────────────────────────────────
+            function saveSettings() {
+                const data = { totalSeconds, walkSeconds, runSeconds };
+                try {
+                    localStorage.setItem('cardio-timer-settings', JSON.stringify(data));
+                } catch (e) { /* ignore */ }
+            }
 
-// ---------- Ajustes ----------
-document.querySelectorAll('.adjust button, .total-controls button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    if (running) return;
-    const t = btn.dataset.t, d = +btn.dataset.d;
-    cfg[t] = Math.max(t==='total'?60:30, cfg[t] + d);
-    localStorage.setItem(t, cfg[t]);
-    render();
-  });
-});
+            function loadSettings() {
+                try {
+                    const raw = localStorage.getItem('cardio-timer-settings');
+                    if (raw) {
+                        const data = JSON.parse(raw);
+                        if (typeof data.totalSeconds === 'number' && data.totalSeconds >= 60) totalSeconds =
+                            data.totalSeconds;
+                        if (typeof data.walkSeconds === 'number' && data.walkSeconds >= 30) walkSeconds = data
+                            .walkSeconds;
+                        if (typeof data.runSeconds === 'number' && data.runSeconds >= 30) runSeconds = data.runSeconds;
+                    }
+                } catch (e) { /* use defaults */ }
+            }
 
-// ---------- Loop ----------
-function startPhase(p) {
-  phase = p;
-  phaseRemain = cfg[p];
-  document.getElementById('status').textContent = p==='walk' ? '🚶 Caminhando...' : '🏃 Correndo!';
-  render();
-}
+            // ─────────────────────────────────────
+            // FORMATTING
+            // ─────────────────────────────────────
+            function formatTime(totalSec) {
+                const sec = Math.max(0, Math.floor(totalSec));
+                const m = Math.floor(sec / 60);
+                const s = sec % 60;
+                return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+            }
 
-function tick() {
-  totalRemain--;
-  phaseRemain--;
+            function formatSetValue(totalSec) {
+                const m = Math.floor(totalSec / 60);
+                const s = totalSec % 60;
+                if (s === 0) return m + ':00';
+                return m + ':' + String(s).padStart(2, '0');
+            }
 
-  if (totalRemain <= 0) { finish(); return; }
+            // ─────────────────────────────────────
+            // DISPLAY UPDATES
+            // ─────────────────────────────────────
+            function updateTotalDisplay() {
+                totalDisplay.textContent = formatTime(totalSeconds);
+            }
 
-  if (phaseRemain <= 0) {
-    signal(); // fim da fase
-    if (phase === 'walk') {
-      startPhase('run');
-    } else {
-      cycleCount++;
-      document.getElementById('cycles').textContent = `Ciclos completos: ${cycleCount}`;
-      startPhase('walk');
-    }
-  }
-  render();
-}
+            function updateWalkDisplay() {
+                walkDisplay.textContent = formatTime(walkSeconds);
+                walkSetValue.textContent = formatSetValue(walkSeconds);
+            }
 
-function startWorkout() {
-  running = true;
-  totalRemain = cfg.total;
-  cycleCount = 0;
-  if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); // desbloqueia áudio
-  audioCtx.resume();
-  document.getElementById('startBtn').textContent = '⏹ PARAR';
-  document.getElementById('startBtn').classList.add('running');
-  document.getElementById('cycles').textContent = 'Ciclos completos: 0';
-  startPhase('walk');
-  ticker = setInterval(tick, 1000);
-}
+            function updateRunDisplay() {
+                runDisplay.textContent = formatTime(runSeconds);
+                runSetValue.textContent = formatSetValue(runSeconds);
+            }
 
-function stopWorkout() {
-  running = false;
-  clearInterval(ticker);
-  document.getElementById('startBtn').textContent = '▶ INICIAR';
-  document.getElementById('startBtn').classList.remove('running');
-  document.getElementById('status').textContent = 'Pronto para iniciar';
-  render();
-}
+            function updateAllDisplays() {
+                updateTotalDisplay();
+                updateWalkDisplay();
+                updateRunDisplay();
+            }
 
-function finish() {
-  signal();
-  setTimeout(signal, 1500); // sinal reforçado no fim
-  document.getElementById('status').textContent = '✅ Treino concluído!';
-  stopWorkout();
-}
+            // ─────────────────────────────────────
+            // UI STATE HELPERS
+            // ─────────────────────────────────────
+            function setControlsEnabled(enabled) {
+                totalMinus.disabled = !enabled;
+                totalPlus.disabled = !enabled;
+                walkMinus.disabled = !enabled;
+                walkPlus.disabled = !enabled;
+                runMinus.disabled = !enabled;
+                runPlus.disabled = !enabled;
+                btnStop.disabled = enabled ? false : true;
+            }
 
-document.getElementById('startBtn').addEventListener('click', () => {
-  running ? stopWorkout() : startWorkout();
-});
+            function highlightActivePhase(phase) {
+                walkCard.classList.remove('active-phase');
+                runCard.classList.remove('active-phase');
+                if (phase === 'walk') walkCard.classList.add('active-phase');
+                if (phase === 'run') runCard.classList.add('active-phase');
+            }
 
-// manter tela ligada (se suportado)
-async function keepAwake() {
-  try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch(e){}
-}
-document.getElementById('startBtn').addEventListener('click', keepAwake);
+            function updateStatusDot(className) {
+                statusDot.className = 'dot ' + className;
+            }
 
-render();
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
-</script>
+            function resetStopButton() {
+                btnStop.classList.remove('confirming');
+                btnStop.textContent = '⏹';
+                if (stopPressTimer) clearTimeout(stopPressTimer);
+                stopPressTimer = null;
+                stopFirstPressTime = null;
+            }
+
+            // ─────────────────────────────────────
+            // CORE LOGIC
+            // ─────────────────────────────────────
+            function getRemainingTotal() {
+                if (!workoutStartTime) return totalSeconds;
+                const elapsed = (Date.now() - workoutStartTime) / 1000;
+                return Math.max(0, totalSeconds - elapsed);
+            }
+
+            function getRemainingPhase() {
+                if (!phaseStartTime) return 0;
+                if (transitionEndTime) {
+                    // During transition, phase is over
+                    return 0;
+                }
+                const elapsed = (Date.now() - phaseStartTime) / 1000;
+                return Math.max(0, phaseDuration - elapsed);
+            }
+
+            function startPhase(phase) {
+                phaseStartTime = Date.now();
+                transitionEndTime = null;
+
+                if (phase === 'walk') {
+                    phaseDuration = walkSeconds;
+                    currentState = STATE.WALKING;
+                    highlightActivePhase('walk');
+                    updateStatusDot('walk');
+                    statusText.textContent = 'Caminhada em andamento...';
+                } else if (phase === 'run') {
+                    phaseDuration = runSeconds;
+                    currentState = STATE.RUNNING;
+                    highlightActivePhase('run');
+                    updateStatusDot('run');
+                    statusText.textContent = 'Corrida em andamento...';
+                }
+            }
+
+            function startTransition(nextPhase) {
+                const transitionDuration = 4; // seconds
+                transitionEndTime = Date.now() + transitionDuration * 1000;
+                phaseStartTime = null;
+                phaseDuration = 0;
+
+                if (nextPhase === 'run') {
+                    currentState = STATE.TRANSITION_TO_RUN;
+                    highlightActivePhase('walk'); // still highlight walk until transition ends
+                    updateStatusDot('walk');
+                    statusText.textContent = 'Prepare-se para CORRER!';
+                } else {
+                    currentState = STATE.TRANSITION_TO_WALK;
+                    highlightActivePhase('run');
+                    updateStatusDot('run');
+                    statusText.textContent = 'Prepare-se para CAMINHAR!';
+                }
+
+                // Trigger beeps + flash
+                playBeepSequence(5, 600);
+                triggerFlash(4000);
+
+                // After transition, start next phase
+                const next = (nextPhase === 'run') ? 'run' : 'walk';
+                setTimeout(() => {
+                    // Only start if still in transition state (workout not finished/stopped)
+                    if (currentState === STATE.TRANSITION_TO_RUN || currentState === STATE.TRANSITION_TO_WALK) {
+                        startPhase(next);
+                    }
+                }, transitionDuration * 1000);
+            }
+
+            function finishWorkout() {
+                currentState = STATE.FINISHED;
+                clearInterval(timerInterval);
+                timerInterval = null;
+                highlightActivePhase(null);
+                updateStatusDot('finished');
+                statusText.textContent = '🏁 Treino concluído! Parabéns!';
+                btnStart.textContent = '▶ INICIAR';
+                btnStart.classList.remove('running-state');
+                setControlsEnabled(true);
+                resetStopButton();
+                btnStop.disabled = true;
+                workoutStartTime = null;
+                phaseStartTime = null;
+                transitionEndTime = null;
+
+                // Victory beeps
+                playBeepSequence(3, 200);
+                setTimeout(() => playBeep(1100, 0.4, 0.6), 600);
+                triggerFlash(2000);
+
+                updateAllDisplays();
+            }
+
+            function stopWorkout() {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                currentState = STATE.IDLE;
+                highlightActivePhase(null);
+                updateStatusDot('idle');
+                statusText.textContent = 'Pronto para iniciar';
+                btnStart.textContent = '▶ INICIAR';
+                btnStart.classList.remove('running-state');
+                setControlsEnabled(true);
+                resetStopButton();
+                btnStop.disabled = true;
+                workoutStartTime = null;
+                phaseStartTime = null;
+                transitionEndTime = null;
+                updateAllDisplays();
+            }
+
+            function tick() {
+                const remainingTotal = getRemainingTotal();
+
+                // Update total display
+                totalDisplay.textContent = formatTime(remainingTotal);
+
+                // Check if total time is up
+                if (remainingTotal <= 0) {
+                    finishWorkout();
+                    return;
+                }
+
+                // Check if transition is complete
+                if (transitionEndTime && Date.now() >= transitionEndTime) {
+                    // Transition should have been handled by setTimeout in startTransition
+                    // This is a safety net
+                    if (currentState === STATE.TRANSITION_TO_RUN) {
+                        startPhase('run');
+                    } else if (currentState === STATE.TRANSITION_TO_WALK) {
+                        startPhase('walk');
+                    }
+                }
+
+                // Update phase display
+                if (currentState === STATE.WALKING || currentState === STATE.RUNNING) {
+                    const remainingPhase = getRemainingPhase();
+                    if (currentState === STATE.WALKING) {
+                        walkDisplay.textContent = formatTime(remainingPhase);
+                        if (remainingPhase <= 0) {
+                            startTransition('run');
+                        }
+                    } else if (currentState === STATE.RUNNING) {
+                        runDisplay.textContent = formatTime(remainingPhase);
+                        if (remainingPhase <= 0) {
+                            startTransition('walk');
+                        }
+                    }
+                }
+
+                // During transition, show 00:00 on the just-finished timer
+                if (currentState === STATE.TRANSITION_TO_RUN) {
+                    walkDisplay.textContent = '00:00';
+                } else if (currentState === STATE.TRANSITION_TO_WALK) {
+                    runDisplay.textContent = '00:00';
+                }
+            }
+
+            // ─────────────────────────────────────
+            // BUTTON HANDLERS
+            // ─────────────────────────────────────
+            function handleStart() {
+                if (currentState === STATE.IDLE || currentState === STATE.FINISHED) {
+                    // Start workout
+                    saveSettings();
+                    workoutStartTime = Date.now();
+                    setControlsEnabled(false);
+                    btnStart.textContent = '🏃 EM ANDAMENTO';
+                    btnStart.classList.add('running-state');
+                    btnStop.disabled = false;
+                    resetStopButton();
+                    updateAllDisplays();
+                    startPhase('walk');
+
+                    // Start tick loop
+                    timerInterval = setInterval(tick, 100);
+                }
+            }
+
+            function handleStop() {
+                if (currentState === STATE.IDLE || currentState === STATE.FINISHED) return;
+                if (!btnStop.disabled && timerInterval) {
+                    const now = Date.now();
+
+                    if (!stopFirstPressTime || (now - stopFirstPressTime) > 5000) {
+                        // First press (or previous press expired)
+                        stopFirstPressTime = now;
+                        btnStop.classList.add('confirming');
+                        btnStop.textContent = 'CONFIRMAR';
+                        statusText.textContent = 'Pressione novamente para PARAR';
+
+                        // Reset after 5 seconds
+                        if (stopPressTimer) clearTimeout(stopPressTimer);
+                        stopPressTimer = setTimeout(() => {
+                            resetStopButton();
+                            // Restore status text
+                            if (currentState === STATE.WALKING) statusText.textContent =
+                                'Caminhada em andamento...';
+                            else if (currentState === STATE.RUNNING) statusText.textContent =
+                                'Corrida em andamento...';
+                            else if (currentState === STATE.TRANSITION_TO_RUN) statusText.textContent =
+                                'Prepare-se para CORRER!';
+                            else if (currentState === STATE.TRANSITION_TO_WALK) statusText.textContent =
+                                'Prepare-se para CAMINHAR!';
+                        }, 5000);
+                    } else {
+                        // Second press within 5 seconds → STOP
+                        stopWorkout();
+                    }
+                }
+            }
+
+            // ─────────────────────────────────────
+            // ADJUSTMENT HANDLERS
+            // ─────────────────────────────────────
+            function adjustTotal(deltaMinutes) {
+                if (currentState !== STATE.IDLE && currentState !== STATE.FINISHED) return;
+                totalSeconds = Math.max(5 * 60, Math.min(180 * 60, totalSeconds + deltaMinutes * 60));
+                updateTotalDisplay();
+                saveSettings();
+            }
+
+            function adjustWalk(deltaSeconds) {
+                if (currentState !== STATE.IDLE && currentState !== STATE.FINISHED) return;
+                walkSeconds = Math.max(30, Math.min(10 * 60, walkSeconds + deltaSeconds));
+                updateWalkDisplay();
+                saveSettings();
+            }
+
+            function adjustRun(deltaSeconds) {
+                if (currentState !== STATE.IDLE && currentState !== STATE.FINISHED) return;
+                runSeconds = Math.max(30, Math.min(10 * 60, runSeconds + deltaSeconds));
+                updateRunDisplay();
+                saveSettings();
+            }
+
+            // ─────────────────────────────────────
+            // EVENT LISTENERS
+            // ─────────────────────────────────────
+            btnStart.addEventListener('click', handleStart);
+            btnStop.addEventListener('click', handleStop);
+            totalMinus.addEventListener('click', () => adjustTotal(-5));
+            totalPlus.addEventListener('click', () => adjustTotal(5));
+            walkMinus.addEventListener('click', () => adjustWalk(-30));
+            walkPlus.addEventListener('click', () => adjustWalk(30));
+            runMinus.addEventListener('click', () => adjustRun(-30));
+            runPlus.addEventListener('click', () => adjustRun(30));
+
+            // Prevent double-tap zoom on buttons
+            document.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    this.click();
+                }, { passive: false });
+            });
+
+            // ─────────────────────────────────────
+            // INIT
+            // ─────────────────────────────────────
+            loadSettings();
+            updateAllDisplays();
+            setControlsEnabled(true);
+            btnStop.disabled = true;
+            updateStatusDot('idle');
+            statusText.textContent = 'Pronto para iniciar';
+
+            // ─────────────────────────────────────
+            // SERVICE WORKER REGISTRATION
+            // ─────────────────────────────────────
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('sw.js')
+                        .then(reg => console.log('SW registrado:', reg.scope))
+                        .catch(err => console.log('SW falhou:', err));
+                });
+            }
+        })();
+    </script>
 </body>
 </html>
