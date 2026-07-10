@@ -1,72 +1,186 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#0d1117">
-  <link rel="manifest" href="manifest.json">
-  <title>Cardio Treino</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Treino Cárdio</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { height:100%; font-family:Arial,sans-serif; background:#111; color:#fff; overflow:hidden; }
+  body { display:flex; flex-direction:column; }
+
+  #config { flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:14px; padding:16px; }
+  .row { display:flex; align-items:center; gap:12px; font-size:5vw; }
+  .row label { width:38vw; text-align:right; }
+  .stepper { display:flex; align-items:center; gap:10px; }
+  .stepper button { width:11vw; height:11vw; font-size:6vw; border:none; border-radius:12px; background:#0a84ff; color:#fff; font-weight:bold; }
+  .val { min-width:22vw; text-align:center; font-size:6vw; font-weight:bold; }
+  #startBtn { margin-top:10px; padding:16px 40px; font-size:6vw; border:none; border-radius:16px; background:#30d158; color:#fff; font-weight:bold; }
+
+  #run { display:none; flex:1; position:relative; }
+  #run.active { display:flex; flex-direction:column; justify-content:center; align-items:center; }
+  #phase { font-size:9vw; font-weight:bold; margin-bottom:2vh; text-transform:uppercase; letter-spacing:2px; }
+  #phaseTimer { font-size:22vw; font-weight:bold; line-height:1; }
+  #totalTimer { font-size:7vw; margin-top:2vh; color:#aaa; }
+  #hint { position:absolute; bottom:2vh; font-size:3.5vw; color:#666; }
+
+  .walk { color:#0a84ff; }
+  .runc { color:#ff9f0a; }
+
+  #flash { position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:99; }
+  #flash.on { animation:blink .4s steps(1) 10; }
+  @keyframes blink { 0%{opacity:0.85;} 50%{opacity:0;} 100%{opacity:0.85;} }
+</style>
 </head>
 <body>
-  <div id="flash" class="flash"></div>
 
-  <div class="app">
-    <!-- CONFIGURAÇÃO -->
-    <section id="config" class="config">
-      <div class="tool tool-total">
-        <label>Tempo Total (min)</label>
-        <div class="stepper">
-          <button data-tool="total" data-delta="-1">−</button>
-          <span id="totalVal">45</span>
-          <button data-tool="total" data-delta="1">+</button>
-        </div>
-      </div>
-
-      <div class="tools-row">
-        <div class="tool tool-walk">
-          <label>Caminhada</label>
-          <div class="stepper">
-            <button data-tool="walk" data-delta="-30">−</button>
-            <span id="walkVal">02:00</span>
-            <button data-tool="walk" data-delta="30">+</button>
-          </div>
-        </div>
-
-        <div class="tool tool-run">
-          <label>Corrida</label>
-          <div class="stepper">
-            <button data-tool="run" data-delta="-30">−</button>
-            <span id="runVal">01:00</span>
-            <button data-tool="run" data-delta="30">+</button>
-          </div>
-        </div>
-      </div>
-
-      <button id="startBtn" class="start-btn">INICIAR</button>
-    </section>
-
-    <!-- TREINO EM ANDAMENTO -->
-    <section id="running" class="running hidden">
-      <div class="phase-banner" id="phaseBanner">CAMINHADA</div>
-
-      <div class="run-tools">
-        <div class="run-tool primary">
-          <label id="phaseLabel">Caminhada</label>
-          <div class="big-timer" id="phaseTimer">02:00</div>
-        </div>
-
-        <div class="run-tool total-tool">
-          <label>Tempo Total Restante</label>
-          <div class="big-timer" id="totalTimer">45:00</div>
-        </div>
-      </div>
-
-      <button id="stopBtn" class="stop-btn">PARAR (2x)</button>
-      <div class="hint" id="stopHint"></div>
-    </section>
+<!-- TELA DE CONFIGURAÇÃO -->
+<div id="config">
+  <div class="row">
+    <label>Total (min)</label>
+    <div class="stepper">
+      <button onclick="adj('total',-1)">−</button>
+      <span class="val" id="totalVal">45</span>
+      <button onclick="adj('total',1)">+</button>
+    </div>
   </div>
+  <div class="row">
+    <label>Caminhada</label>
+    <div class="stepper">
+      <button onclick="adj('walk',-30)">−</button>
+      <span class="val" id="walkVal">2:00</span>
+      <button onclick="adj('walk',30)">+</button>
+    </div>
+  </div>
+  <div class="row">
+    <label>Corrida</label>
+    <div class="stepper">
+      <button onclick="adj('runp',-30)">−</button>
+      <span class="val" id="runVal">1:00</span>
+      <button onclick="adj('runp',30)">+</button>
+    </div>
+  </div>
+  <button id="startBtn" onclick="start()">▶ INICIAR</button>
+</div>
 
-  <script src="app.js"></script>
+<!-- TELA DE EXECUÇÃO -->
+<div id="run">
+  <div id="phase"></div>
+  <div id="phaseTimer"></div>
+  <div id="totalTimer"></div>
+  <div id="hint">Clique duplo para PARAR</div>
+</div>
+
+<div id="flash"></div>
+
+<script>
+// ===== CONFIG SALVA =====
+let cfg = {
+  total: +localStorage.getItem('total') || 45,   // minutos
+  walk:  +localStorage.getItem('walk')  || 120,  // segundos
+  runp:  +localStorage.getItem('runp')  || 60    // segundos
+};
+
+const clamp = (v,min)=> v<min?min:v;
+const fmt = s => Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+
+function render(){
+  totalVal.textContent = cfg.total;
+  walkVal.textContent  = fmt(cfg.walk);
+  runVal.textContent   = fmt(cfg.runp);
+}
+function adj(k,d){
+  if(k==='total') cfg.total = clamp(cfg.total+d,1);
+  else cfg[k] = clamp(cfg[k]+d,30);
+  localStorage.setItem(k, cfg[k]);
+  render();
+}
+render();
+
+// ===== ÁUDIO (bips) =====
+let ac;
+function beep(){
+  ac = ac || new (window.AudioContext||window.webkitAudioContext)();
+  const o=ac.createOscillator(), g=ac.createGain();
+  o.connect(g); g.connect(ac.destination);
+  o.frequency.value=880; o.type='square';
+  g.gain.setValueAtTime(0.3, ac.currentTime);
+  o.start();
+  o.stop(ac.currentTime+0.15);
+}
+function beeps5(){
+  for(let i=0;i<5;i++) setTimeout(beep, i*300);
+}
+function flash(){
+  const f=document.getElementById('flash');
+  f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
+  setTimeout(()=>f.classList.remove('on'),4000);
+}
+function alertTransition(){ beeps5(); flash(); }
+
+// ===== EXECUÇÃO =====
+let timer, totalLeft, phaseLeft, phase, running=false;
+
+function start(){
+  ac = new (window.AudioContext||window.webkitAudioContext)(); // desbloqueia áudio
+  if('wakeLock' in navigator) navigator.wakeLock.request('screen').catch(()=>{});
+  totalLeft = cfg.total*60;
+  phase='walk'; phaseLeft=cfg.walk;
+  running=true;
+  document.getElementById('config').style.display='none';
+  document.getElementById('run').classList.add('active');
+  updateScreen();
+  timer=setInterval(tick,1000);
+}
+
+function tick(){
+  totalLeft--; phaseLeft--;
+  if(totalLeft<=0){ finish(); return; }
+  if(phaseLeft<=0){
+    phase = phase==='walk' ? 'run' : 'walk';
+    phaseLeft = phase==='walk' ? cfg.walk : cfg.runp;
+    alertTransition();
+  }
+  updateScreen();
+}
+
+function updateScreen(){
+  const p=document.getElementById('phase');
+  const isWalk = phase==='walk';
+  p.textContent = isWalk ? '🚶 CAMINHADA' : '🏃 CORRIDA';
+  p.className = isWalk ? 'walk' : 'runc';
+  document.getElementById('phaseTimer').className = isWalk ? 'walk' : 'runc';
+  document.getElementById('phaseTimer').textContent = fmt(phaseLeft);
+  document.getElementById('totalTimer').textContent = 'Total restante: '+fmt(totalLeft);
+}
+
+function finish(){
+  clearInterval(timer); running=false;
+  beeps5(); flash();
+  document.getElementById('phase').textContent='✅ FIM';
+  document.getElementById('phaseTimer').textContent='00:00';
+  setTimeout(reset,4000);
+}
+
+function reset(){
+  running=false;
+  document.getElementById('run').classList.remove('active');
+  document.getElementById('config').style.display='flex';
+}
+
+// ===== PARAR COM CLIQUE DUPLO (máx 5s) =====
+let lastTap=0;
+document.getElementById('run').addEventListener('click', ()=>{
+  if(!running) return;
+  const now=Date.now();
+  if(now-lastTap < 5000 && lastTap!==0){
+    clearInterval(timer);
+    reset();
+    lastTap=0;
+  } else {
+    lastTap=now;
+  }
+});
+</script>
 </body>
 </html>
