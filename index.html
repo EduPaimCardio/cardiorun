@@ -1,506 +1,72 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cardio Timer - Treino de Esteira</title>
-    
-    <!-- PWA - Instalação como App -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0f0f1a">
-    
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0f0f1a;
-            color: #fff;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            user-select: none;
-            -webkit-user-select: none;
-            -webkit-tap-highlight-color: transparent;
-            transition: background 0.6s ease;
-        }
-        
-        body.fase-caminhada { background: #0f2b1a; }
-        body.fase-corrida   { background: #2b0f0f; }
-        body.parado         { background: #0f0f1a; }
-        body.finalizado     { background: #1a1a0f; }
-
-        .container {
-            text-align: center;
-            padding: 24px;
-            width: 100%;
-            max-width: 400px;
-        }
-
-        h1 {
-            font-size: 1.4rem;
-            font-weight: 600;
-            margin-bottom: 4px;
-            letter-spacing: 1px;
-        }
-
-        .subtitulo {
-            font-size: 0.85rem;
-            color: #888;
-            margin-bottom: 32px;
-        }
-
-        /* Painel de Configuração */
-        .config {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            margin-bottom: 28px;
-            flex-wrap: wrap;
-        }
-
-        .config-item {
-            background: #1a1a2e;
-            border-radius: 14px;
-            padding: 12px 16px;
-            text-align: center;
-            flex: 1;
-            min-width: 100px;
-            border: 1px solid #2a2a3e;
-        }
-
-        .config-item label {
-            display: block;
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #888;
-            margin-bottom: 6px;
-        }
-
-        .config-item .valor {
-            font-size: 1.6rem;
-            font-weight: 700;
-        }
-
-        .config-item.caminhada .valor { color: #4ade80; }
-        .config-item.corrida   .valor { color: #f87171; }
-
-        .config-btn {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-            margin-top: 4px;
-        }
-
-        .config-btn button {
-            background: #252540;
-            border: none;
-            color: #fff;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            font-size: 1rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s;
-        }
-
-        .config-btn button:active { background: #3a3a5a; }
-
-        /* Timer Principal */
-        .timer-circle {
-            width: 220px;
-            height: 220px;
-            border-radius: 50%;
-            border: 6px solid #2a2a3e;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 12px;
-            transition: border-color 0.6s ease;
-            background: #1a1a2e;
-        }
-
-        .fase-caminhada .timer-circle { border-color: #4ade80; }
-        .fase-corrida   .timer-circle { border-color: #f87171; }
-        .finalizado     .timer-circle { border-color: #facc15; }
-
-        .timer-texto {
-            text-align: center;
-        }
-
-        .timer-fase {
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #888;
-            margin-bottom: 4px;
-        }
-
-        .fase-caminhada .timer-fase { color: #4ade80; }
-        .fase-corrida   .timer-fase { color: #f87171; }
-        .finalizado     .timer-fase { color: #facc15; }
-
-        .timer-relogio {
-            font-size: 3.4rem;
-            font-weight: 700;
-            font-variant-numeric: tabular-nums;
-            letter-spacing: 2px;
-        }
-
-        /* Botões */
-        .botoes {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            margin-bottom: 16px;
-        }
-
-        .btn {
-            padding: 14px 32px;
-            border-radius: 50px;
-            border: none;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            letter-spacing: 0.5px;
-            transition: transform 0.1s, opacity 0.2s;
-        }
-
-        .btn:active { transform: scale(0.96); }
-
-        .btn-iniciar {
-            background: #4ade80;
-            color: #000;
-        }
-
-        .btn-pausar {
-            background: #facc15;
-            color: #000;
-        }
-
-        .btn-zerar {
-            background: #3a3a50;
-            color: #fff;
-        }
-
-        .btn:disabled {
-            opacity: 0.4;
-            pointer-events: none;
-        }
-
-        /* Progresso */
-        .progresso {
-            display: flex;
-            gap: 4px;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        .bolinha {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #2a2a3e;
-            transition: background 0.3s;
-        }
-
-        .bolinha.feita     { background: #4ade80; }
-        .bolinha.feita.run { background: #f87171; }
-        .bolinha.atual     { background: #fff; transform: scale(1.4); }
-
-        /* Resumo */
-        .resumo {
-            font-size: 0.75rem;
-            color: #666;
-        }
-
-        .resumo span {
-            color: #aaa;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0d1117">
+  <link rel="manifest" href="manifest.json">
+  <title>Cardio Treino</title>
+  <link rel="stylesheet" href="style.css">
 </head>
-<body class="parado">
+<body>
+  <div id="flash" class="flash"></div>
 
-    <div class="container">
-        <h1>🏃 CARDIO TIMER</h1>
-        <p class="subtitulo">Treino Intervalado · Esteira</p>
+  <div class="app">
+    <!-- CONFIGURAÇÃO -->
+    <section id="config" class="config">
+      <div class="tool tool-total">
+        <label>Tempo Total (min)</label>
+        <div class="stepper">
+          <button data-tool="total" data-delta="-1">−</button>
+          <span id="totalVal">45</span>
+          <button data-tool="total" data-delta="1">+</button>
+        </div>
+      </div>
 
-        <!-- Configuração -->
-        <div class="config">
-            <div class="config-item caminhada">
-                <label>🚶 Caminhada</label>
-                <div class="valor" id="cfgCaminhada">3:00</div>
-                <div class="config-btn">
-                    <button onclick="ajustarTempo('caminhada', -30)">−</button>
-                    <button onclick="ajustarTempo('caminhada', +30)">+</button>
-                </div>
-            </div>
-            <div class="config-item corrida">
-                <label>🏃 Corrida</label>
-                <div class="valor" id="cfgCorrida">1:30</div>
-                <div class="config-btn">
-                    <button onclick="ajustarTempo('corrida', -15)">−</button>
-                    <button onclick="ajustarTempo('corrida', +15)">+</button>
-                </div>
-            </div>
+      <div class="tools-row">
+        <div class="tool tool-walk">
+          <label>Caminhada</label>
+          <div class="stepper">
+            <button data-tool="walk" data-delta="-30">−</button>
+            <span id="walkVal">02:00</span>
+            <button data-tool="walk" data-delta="30">+</button>
+          </div>
         </div>
 
-        <!-- Timer -->
-        <div class="timer-circle">
-            <div class="timer-texto">
-                <div class="timer-fase" id="faseTexto">PRONTO</div>
-                <div class="timer-relogio" id="relogio">--:--</div>
-            </div>
+        <div class="tool tool-run">
+          <label>Corrida</label>
+          <div class="stepper">
+            <button data-tool="run" data-delta="-30">−</button>
+            <span id="runVal">01:00</span>
+            <button data-tool="run" data-delta="30">+</button>
+          </div>
+        </div>
+      </div>
+
+      <button id="startBtn" class="start-btn">INICIAR</button>
+    </section>
+
+    <!-- TREINO EM ANDAMENTO -->
+    <section id="running" class="running hidden">
+      <div class="phase-banner" id="phaseBanner">CAMINHADA</div>
+
+      <div class="run-tools">
+        <div class="run-tool primary">
+          <label id="phaseLabel">Caminhada</label>
+          <div class="big-timer" id="phaseTimer">02:00</div>
         </div>
 
-        <!-- Botões -->
-        <div class="botoes">
-            <button class="btn btn-iniciar" id="btnIniciar" onclick="iniciar()">▶ Iniciar</button>
-            <button class="btn btn-pausar" id="btnPausar" onclick="pausar()" disabled>⏸ Pausar</button>
-            <button class="btn btn-zerar" id="btnZerar" onclick="zerar()">↺</button>
+        <div class="run-tool total-tool">
+          <label>Tempo Total Restante</label>
+          <div class="big-timer" id="totalTimer">45:00</div>
         </div>
+      </div>
 
-        <!-- Bolinhas de progresso -->
-        <div class="progresso" id="progresso"></div>
+      <button id="stopBtn" class="stop-btn">PARAR (2x)</button>
+      <div class="hint" id="stopHint"></div>
+    </section>
+  </div>
 
-        <!-- Resumo -->
-        <div class="resumo" id="resumo"></div>
-    </div>
-
-    <script>
-        // ==================== ESTADO ====================
-        const ESTADO = {
-            tempoCaminhada: 180,   // segundos (3 min)
-            tempoCorrida: 90,      // segundos (1:30 min)
-            fase: 'caminhada',     // 'caminhada' | 'corrida'
-            tempoRestante: 180,
-            rodando: false,
-            intervalo: null,
-            totalSeries: 0,
-            seriesCompletas: 0,
-            inicioReal: null
-        };
-
-        // ==================== ELEMENTOS ====================
-        const body        = document.body;
-        const faseTexto   = document.getElementById('faseTexto');
-        const relogio     = document.getElementById('relogio');
-        const btnIniciar  = document.getElementById('btnIniciar');
-        const btnPausar   = document.getElementById('btnPausar');
-        const btnZerar    = document.getElementById('btnZerar');
-        const progressoEl = document.getElementById('progresso');
-        const resumoEl    = document.getElementById('resumo');
-        const cfgCaminhada = document.getElementById('cfgCaminhada');
-        const cfgCorrida   = document.getElementById('cfgCorrida');
-
-        // ==================== FUNÇÕES ====================
-
-        function formatar(segundos) {
-            const m = Math.floor(segundos / 60);
-            const s = segundos % 60;
-            return `${m}:${String(s).padStart(2, '0')}`;
-        }
-
-        function atualizarDisplay() {
-            relogio.textContent = formatar(ESTADO.tempoRestante);
-
-            if (!ESTADO.rodando && ESTADO.tempoRestante === ESTADO.tempoCaminhada) {
-                faseTexto.textContent = 'PRONTO';
-                body.className = 'parado';
-            } else if (ESTADO.fase === 'caminhada') {
-                faseTexto.textContent = 'CAMINHADA 🚶';
-                body.className = 'fase-caminhada';
-            } else {
-                faseTexto.textContent = 'CORRIDA 🏃';
-                body.className = 'fase-corrida';
-            }
-
-            cfgCaminhada.textContent = formatar(ESTADO.tempoCaminhada);
-            cfgCorrida.textContent   = formatar(ESTADO.tempoCorrida);
-        }
-
-        function beep(freq, duracao) {
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.frequency.value = freq;
-                osc.type = 'square';
-                gain.gain.value = 0.15;
-                osc.start();
-                osc.stop(ctx.currentTime + duracao);
-            } catch(e) { /* silencioso se falhar */ }
-        }
-
-        function alertaFase() {
-            if (ESTADO.fase === 'caminhada') {
-                beep(600, 0.15);
-                setTimeout(() => beep(800, 0.2), 200);
-            } else {
-                beep(800, 0.1);
-                setTimeout(() => beep(800, 0.1), 150);
-                setTimeout(() => beep(800, 0.1), 300);
-            }
-        }
-
-        function atualizarProgresso() {
-            const total = ESTADO.totalSeries;
-            const feitas = ESTADO.seriesCompletas;
-            let html = '';
-
-            for (let i = 0; i < total; i++) {
-                if (i < feitas) {
-                    html += `<div class="bolinha feita${i % 2 === 1 ? ' run' : ''}"></div>`;
-                } else if (i === feitas && ESTADO.rodando) {
-                    html += `<div class="bolinha atual"></div>`;
-                } else {
-                    html += `<div class="bolinha"></div>`;
-                }
-            }
-
-            progressoEl.innerHTML = html;
-            resumoEl.innerHTML = `<span>${feitas}</span> de <span>${total}</span> séries · Tempo total: <span>${formatar(calcularTempoTotal())}</span>`;
-        }
-
-        function calcularTempoTotal() {
-            return ESTADO.totalSeries * (ESTADO.tempoCaminhada + ESTADO.tempoCorrida);
-        }
-
-        function tick() {
-            if (!ESTADO.rodando) return;
-
-            ESTADO.tempoRestante--;
-
-            // Últimos 3 segundos: beep de aviso
-            if (ESTADO.tempoRestante <= 3 && ESTADO.tempoRestante > 0) {
-                beep(400, 0.08);
-            }
-
-            if (ESTADO.tempoRestante <= 0) {
-                // Troca de fase
-                alertaFase();
-
-                if (ESTADO.fase === 'caminhada') {
-                    ESTADO.fase = 'corrida';
-                    ESTADO.tempoRestante = ESTADO.tempoCorrida;
-                } else {
-                    // Fim de uma série completa
-                    ESTADO.seriesCompletas++;
-
-                    if (ESTADO.seriesCompletas >= ESTADO.totalSeries) {
-                        finalizar();
-                        return;
-                    }
-
-                    ESTADO.fase = 'caminhada';
-                    ESTADO.tempoRestante = ESTADO.tempoCaminhada;
-                }
-            }
-
-            atualizarDisplay();
-            atualizarProgresso();
-        }
-
-        function iniciar() {
-            if (ESTADO.rodando) return;
-
-            if (!ESTADO.inicioReal || ESTADO.seriesCompletas >= ESTADO.totalSeries) {
-                // Nova contagem ou reinício total
-                ESTADO.totalSeries = parseInt(prompt('Quantas séries (caminhada + corrida)?', '4') || '4');
-                if (ESTADO.totalSeries < 1) ESTADO.totalSeries = 1;
-                if (ESTADO.totalSeries > 30) ESTADO.totalSeries = 30;
-                ESTADO.seriesCompletas = 0;
-                ESTADO.fase = 'caminhada';
-                ESTADO.tempoRestante = ESTADO.tempoCaminhada;
-                ESTADO.inicioReal = Date.now();
-            }
-
-            ESTADO.rodando = true;
-            btnIniciar.disabled = true;
-            btnPausar.disabled = false;
-
-            atualizarDisplay();
-            atualizarProgresso();
-            beep(500, 0.1);
-
-            ESTADO.intervalo = setInterval(tick, 1000);
-        }
-
-        function pausar() {
-            ESTADO.rodando = false;
-            clearInterval(ESTADO.intervalo);
-            btnIniciar.disabled = false;
-            btnPausar.disabled = true;
-            atualizarDisplay();
-        }
-
-        function zerar() {
-            pausar();
-            ESTADO.fase = 'caminhada';
-            ESTADO.tempoRestante = ESTADO.tempoCaminhada;
-            ESTADO.seriesCompletas = 0;
-            ESTADO.totalSeries = 0;
-            ESTADO.inicioReal = null;
-            body.className = 'parado';
-            progressoEl.innerHTML = '';
-            resumoEl.innerHTML = '';
-            atualizarDisplay();
-        }
-
-        function finalizar() {
-            ESTADO.rodando = false;
-            clearInterval(ESTADO.intervalo);
-            body.className = 'finalizado';
-            faseTexto.textContent = 'CONCLUÍDO 🎉';
-            relogio.textContent = formatar(ESTADO.tempoCorrida); // mostra o último tempo
-            btnIniciar.disabled = false;
-            btnPausar.disabled = true;
-
-            // Beep triunfal
-            beep(600, 0.15);
-            setTimeout(() => beep(800, 0.15), 200);
-            setTimeout(() => beep(1000, 0.3), 400);
-
-            atualizarProgresso();
-
-            const tempoTotal = Math.floor((Date.now() - ESTADO.inicioReal) / 1000);
-            resumoEl.innerHTML += `<br>✅ Treino finalizado em <span>${formatar(tempoTotal)}</span>!`;
-        }
-
-        function ajustarTempo(tipo, delta) {
-            if (ESTADO.rodando) return;
-
-            if (tipo === 'caminhada') {
-                ESTADO.tempoCaminhada = Math.max(30, Math.min(600, ESTADO.tempoCaminhada + delta));
-                ESTADO.tempoRestante = ESTADO.tempoCaminhada;
-            } else {
-                ESTADO.tempoCorrida = Math.max(15, Math.min(300, ESTADO.tempoCorrida + delta));
-            }
-
-            atualizarDisplay();
-        }
-
-        // ==================== INICIALIZAÇÃO ====================
-        atualizarDisplay();
-
-        // ==================== SERVICE WORKER ====================
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(() => console.log('✅ Service Worker registrado'))
-                .catch(() => console.log('⚠️ Service Worker offline'));
-        }
-    </script>
-
+  <script src="app.js"></script>
 </body>
 </html>
