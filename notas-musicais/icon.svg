@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="100" fill="#101a2a"/>
+  <g stroke="#d9e2ef" stroke-width="10">
+    <path d="M95 170h322M95 220h322M95 270h322M95 320h322M95 370h322"/>
+  </g>
+  <text x="118" y="345" fill="#f6c85f" font-family="serif" font-size="220">𝄞</text>
+  <ellipse cx="340" cy="245" rx="28" ry="21" fill="#fff" transform="rotate(-20 340 245)"/>
+  <path d="M365 245v-105" stroke="#fff" stroke-width="12"/>
+</svg>
