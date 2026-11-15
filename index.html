@@ -1,235 +1,589 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>CardioRun</title>
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html,body { height:100%; font-family:'Segoe UI',Arial,sans-serif; background:#0d1117; color:#e6edf3; overflow:hidden; }
-  #app { display:flex; flex-direction:column; height:100%; padding:8px; }
-  .version { text-align:center; font-size:14px; color:#8b949e; padding:4px; }
-  .main { flex:1; display:flex; flex-direction:column; gap:8px; }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101a2a">
+  <meta name="description" content="Aplicativo para praticar leitura de notas musicais na clave de sol e de fá.">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <title>Notas Musicais</title>
 
-  .tool { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:10px; }
-  .tool h2 { font-size:14px; color:#8b949e; text-align:center; margin-bottom:4px; }
-  .time { font-size:clamp(28px,8vw,64px); font-weight:bold; text-align:center; font-variant-numeric:tabular-nums; }
-
-  /* Ferramentas em destaque */
-  .highlight .time { color:#58a6ff; }
-  .highlight { border-color:#58a6ff; box-shadow:0 0 12px rgba(88,166,255,.3); }
-  .run .time { color:#f778ba; }
-
-  .controls { display:flex; justify-content:center; gap:8px; margin-top:6px; }
-  .controls button { background:#21262d; color:#e6edf3; border:1px solid #30363d; border-radius:8px; padding:6px 14px; font-size:18px; cursor:pointer; }
-  .controls button:active { background:#30363d; }
-
-  .bottom { display:flex; gap:8px; }
-  .bottom > .tool { flex:1; }
-
-  .actions { display:flex; gap:10px; padding:6px 0; }
-  .actions button { flex:1; font-size:20px; font-weight:bold; padding:14px; border:none; border-radius:12px; color:#fff; cursor:pointer; }
-  #startBtn { background:#238636; }
-  #stopBtn { background:#da3633; }
-  #startBtn:disabled,#stopBtn:disabled { opacity:.4; }
-
-  .phase { text-align:center; font-size:18px; font-weight:bold; padding:6px; min-height:32px; }
-
-  /* Flash luminoso */
-  #flash { position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:9999; }
-  #flash.active { animation:blink .4s steps(1) 10; }
-  @keyframes blink { 50% { opacity:.85; } }
-
-  /* Layout horizontal */
-  @media (orientation:landscape) {
-    .main { flex-direction:row; flex-wrap:wrap; }
-    #total { flex-basis:100%; order:1; }
-    .bottom { flex:1; order:2; flex-direction:row; align-items:stretch; }
-    .side { display:flex; flex-direction:column; justify-content:space-between; gap:8px; order:3; }
-    .actions { flex-direction:column; width:140px; }
-    .time { font-size:clamp(24px,6vw,56px); }
-  }
-</style>
-</head>
-<body>
-<div id="flash"></div>
-<div id="app">
-  <div class="version">Versao 2.0</div>
-
-  <div class="main">
-    <!-- 1ª ferramenta: Total -->
-    <div class="tool highlight" id="total">
-      <h2>Tempo Total de Treino</h2>
-      <div class="time" id="totalDisplay">45:00</div>
-      <div class="controls" data-tool="total">
-        <button data-delta="-60">−1min</button>
-        <button data-delta="60">+1min</button>
-      </div>
-    </div>
-
-    <div class="bottom">
-      <!-- 2ª ferramenta: Caminhada -->
-      <div class="tool highlight" id="walk">
-        <h2>Caminhada</h2>
-        <div class="time" id="walkDisplay">02:00</div>
-        <div class="controls" data-tool="walk">
-          <button data-delta="-30">−30s</button>
-          <button data-delta="30">+30s</button>
-        </div>
-      </div>
-      <!-- 3ª ferramenta: Corrida -->
-      <div class="tool run" id="run">
-        <h2>Corrida</h2>
-        <div class="time" id="runDisplay">02:00</div>
-        <div class="controls" data-tool="run">
-          <button data-delta="-30">−30s</button>
-          <button data-delta="30">+30s</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="phase" id="phase"></div>
-
-  <div class="actions">
-    <button id="startBtn">▶ INICIAR</button>
-    <button id="stopBtn" disabled>■ PARAR (2x)</button>
-  </div>
-</div>
-
-<script>
-// ---------- Estado ----------
-const DEFAULTS = { total:45*60, walk:120, run:120 };
-let cfg = {
-  total: +(localStorage.getItem('total') ?? DEFAULTS.total),
-  walk:  +(localStorage.getItem('walk')  ?? DEFAULTS.walk),
-  run:   +(localStorage.getItem('run')   ?? DEFAULTS.run),
-};
-
-let running=false, timer=null;
-let totalLeft=0, phaseLeft=0, phase='walk';
-
-// ---------- Utilidades ----------
-const fmt = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
-const $ = id => document.getElementById(id);
-
-function render(){
-  $('totalDisplay').textContent = fmt(running ? totalLeft : cfg.total);
-  $('walkDisplay').textContent  = (running && phase==='walk') ? fmt(phaseLeft) : fmt(cfg.walk);
-  $('runDisplay').textContent   = (running && phase==='run')  ? fmt(phaseLeft) : fmt(cfg.run);
-}
-
-function save(){ Object.keys(cfg).forEach(k=>localStorage.setItem(k,cfg[k])); }
-
-// ---------- Ajuste dos temporizadores ----------
-document.querySelectorAll('.controls').forEach(ctrl=>{
-  const tool = ctrl.dataset.tool;
-  ctrl.querySelectorAll('button').forEach(btn=>{
-    btn.onclick = ()=>{
-      if(running) return;
-      const min = tool==='total' ? 60 : 30;
-      cfg[tool] = Math.max(min, cfg[tool] + (+btn.dataset.delta));
-      save(); render();
-    };
-  });
-});
-
-// ---------- Sinais ----------
-let audioCtx;
-function beep(times){
-  try{
-    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
-    for(let i=0;i<times;i++){
-      const t = audioCtx.currentTime + i*0.35;
-      const osc = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
-      osc.connect(g); g.connect(audioCtx.destination);
-      osc.frequency.value = 880; osc.type='square';
-      g.gain.setValueAtTime(0.001,t);
-      g.gain.exponentialRampToValueAtTime(0.4,t+0.02);
-      g.gain.exponentialRampToValueAtTime(0.001,t+0.2);
-      osc.start(t); osc.stop(t+0.22);
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: system-ui, sans-serif;
+      background: #101a2a;
+      color: #f5f7fb;
+      font-synthesis: none;
     }
-  }catch(e){}
-}
-function flash(){
-  const f=$('flash'); f.classList.remove('active'); void f.offsetWidth;
-  f.classList.add('active');
-  setTimeout(()=>f.classList.remove('active'),4000);
-}
-function signal(){ beep(5); flash(); if(navigator.vibrate) navigator.vibrate([200,100,200,100,200]); }
 
-// ---------- Loop do treino ----------
-function tick(){
-  totalLeft--;
-  phaseLeft--;
+    * {
+      box-sizing: border-box;
+    }
 
-  if(totalLeft<=0){ finish(); return; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 20px;
+      display: grid;
+      place-items: center;
+    }
 
-  if(phaseLeft<=0){
-    signal();
-    phase = phase==='walk' ? 'run' : 'walk';
-    phaseLeft = phase==='walk' ? cfg.walk : cfg.run;
-  }
-  updatePhaseLabel();
-  render();
-}
+    .app {
+      width: min(100%, 680px);
+      padding: 28px;
+      border: 1px solid #324258;
+      border-radius: 24px;
+      background: #18263a;
+      box-shadow: 0 20px 60px #0005;
+      text-align: center;
+    }
 
-function updatePhaseLabel(){
-  $('phase').textContent = phase==='walk' ? '🚶 CAMINHADA' : '🏃 CORRIDA';
-  $('phase').style.color = phase==='walk' ? '#58a6ff' : '#f778ba';
-}
+    h1 {
+      margin: 0 0 8px;
+    }
 
-function start(){
-  if(running) return;
-  running=true;
-  totalLeft=cfg.total; phase='walk'; phaseLeft=cfg.walk;
-  $('startBtn').disabled=true; $('stopBtn').disabled=false;
-  document.querySelectorAll('.controls button').forEach(b=>b.disabled=true);
-  updatePhaseLabel(); render();
-  requestWakeLock();
-  audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)(); // desbloqueia áudio
-  timer=setInterval(tick,1000);
-}
+    .credito {
+      margin: 0 0 18px;
+      color: #f6c85f;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
 
-function stop(){
-  running=false; clearInterval(timer);
-  $('startBtn').disabled=false; $('stopBtn').disabled=true;
-  document.querySelectorAll('.controls button').forEach(b=>b.disabled=false);
-  $('phase').textContent='';
-  releaseWakeLock();
-  render();
-}
-function finish(){
-  beep(5); flash();
-  stop();
-  $('phase').textContent='✅ TREINO CONCLUÍDO';
-  $('phase').style.color='#238636';
-}
+    .subtitulo {
+      margin: 0 0 24px;
+      color: #bac8da;
+    }
 
-$('startBtn').onclick = start;
+    .botoes,
+    .opcoes {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+    }
 
-// Parar: duplo toque em até 5s
-let lastStop=0;
-$('stopBtn').onclick = ()=>{
-  const now=Date.now();
-  if(now-lastStop<=5000){ stop(); lastStop=0; }
-  else { lastStop=now; $('stopBtn').textContent='■ CONFIRME (2x)';
-    setTimeout(()=>{ if(!running) return; $('stopBtn').textContent='■ PARAR (2x)'; },5000); }
-};
+    button {
+      min-height: 48px;
+      padding: 12px 18px;
+      border: 1px solid #526681;
+      border-radius: 12px;
+      background: #24364d;
+      color: inherit;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
 
-// ---------- Impedir bloqueio de tela ----------
-let wakeLock=null;
-async function requestWakeLock(){
-  try{ if('wakeLock' in navigator) wakeLock=await navigator.wakeLock.request('screen'); }catch(e){}
-}
-function releaseWakeLock(){ try{ wakeLock&&wakeLock.release(); wakeLock=null; }catch(e){} }
-document.addEventListener('visibilitychange',()=>{ if(running&&document.visibilityState==='visible') requestWakeLock(); });
+    button:hover {
+      background: #304762;
+    }
 
-render();
-</script>
+    button:focus-visible {
+      outline: 3px solid #f6c85f;
+      outline-offset: 3px;
+    }
+
+    button:disabled {
+      cursor: default;
+      opacity: 0.65;
+    }
+
+    .primario {
+      background: #176b61;
+      border-color: #39a693;
+    }
+
+    .primario:hover {
+      background: #218477;
+    }
+
+    .oculto {
+      display: none !important;
+    }
+
+    .selecao button {
+      min-width: 130px;
+    }
+
+    .painel {
+      margin-top: 20px;
+      padding: 18px;
+      border: 1px solid #324258;
+      border-radius: 18px;
+      background: #111d2d;
+    }
+
+    .pentagrama {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: 260px;
+      margin: 0 auto;
+    }
+
+    .opcoes {
+      margin-top: 18px;
+    }
+
+    .opcoes button {
+      min-width: 105px;
+      font-size: 1.15rem;
+    }
+
+    .status {
+      min-height: 34px;
+      margin: 16px 0 0;
+      font-weight: 700;
+    }
+
+    .status.correto {
+      color: #6ee7a8;
+    }
+
+    .status.incorreto {
+      color: #ff8080;
+    }
+
+    .controles {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .controles button {
+      flex: 1;
+    }
+
+    .seta {
+      font-size: 1.5rem;
+    }
+
+    .rodape {
+      margin: 18px 0 0;
+      color: #bac8da;
+      font-size: 0.9rem;
+    }
+
+    @keyframes piscar {
+      50% {
+        opacity: 0.15;
+      }
+    }
+
+    .piscar {
+      animation: piscar 0.35s ease-in-out 6;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 12px;
+      }
+
+      .app {
+        padding: 22px 16px;
+      }
+
+      .controles {
+        flex-direction: column;
+      }
+
+      .controles button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <p class="credito">Criado com Perplexity Sonar</p>
+    <h1>Notas Musicais</h1>
+    <p class="subtitulo">Pratique a leitura das notas no pentagrama.</p>
+
+    <section id="telaEscolha" class="selecao" aria-labelledby="tituloEscolha">
+      <h2 id="tituloEscolha">Quais claves deseja estudar?</h2>
+
+      <div class="botoes">
+        <button type="button" data-claves="sol">Clave de sol</button>
+        <button type="button" data-claves="fa">Clave de fá</button>
+        <button type="button" data-claves="ambas">Ambas</button>
+      </div>
+
+      <p class="rodape">
+        A tela ativa pode depender do navegador e das configurações do aparelho.
+      </p>
+    </section>
+
+    <section id="telaEstudo" class="oculto" aria-label="Exercício de leitura musical">
+      <div class="painel">
+        <svg id="pentagrama"
+             class="pentagrama"
+             viewBox="0 0 360 220"
+             role="img"
+             aria-label="Pentagrama com uma nota musical">
+
+          <g stroke="#d9e2ef" stroke-width="2">
+            <line x1="45" y1="55" x2="325" y2="55"></line>
+            <line x1="45" y1="80" x2="325" y2="80"></line>
+            <line x1="45" y1="105" x2="325" y2="105"></line>
+            <line x1="45" y1="130" x2="325" y2="130"></line>
+            <line x1="45" y1="155" x2="325" y2="155"></line>
+          </g>
+
+          <text id="simboloClave"
+                x="57"
+                y="142"
+                fill="#f6c85f"
+                font-size="94"
+                font-family="serif"></text>
+
+          <g id="linhasAuxiliares" stroke="#d9e2ef" stroke-width="2"></g>
+
+          <ellipse id="cabecaNota"
+                   cx="220"
+                   cy="105"
+                   rx="11"
+                   ry="8"
+                   fill="#ffffff"
+                   stroke="#ffffff"
+                   stroke-width="2"
+                   transform="rotate(-20 220 105)"></ellipse>
+
+          <line id="hasteNota"
+                x1="230"
+                y1="105"
+                x2="230"
+                y2="55"
+                stroke="#ffffff"
+                stroke-width="2.5"></line>
+        </svg>
+
+        <p id="status" class="status" aria-live="polite">
+          Escolha o nome da nota.
+        </p>
+
+        <div id="opcoes" class="opcoes"></div>
+      </div>
+
+      <div class="controles">
+        <button id="somBtn" type="button" aria-pressed="true">Som: ligado</button>
+        <button id="voltarBtn" type="button">Trocar clave</button>
+        <button id="proximaBtn"
+                type="button"
+                class="primario"
+                aria-label="Próxima nota">
+          Próxima nota <span class="seta" aria-hidden="true">➜</span>
+        </button>
+      </div>
+
+      <p id="avisoTela" class="rodape" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const notas = [
+        { nome: "Dó", som: 261.63 },
+        { nome: "Ré", som: 293.66 },
+        { nome: "Mi", som: 329.63 },
+        { nome: "Fá", som: 349.23 },
+        { nome: "Sol", som: 392.00 },
+        { nome: "Lá", som: 440.00 },
+        { nome: "Si", som: 493.88 }
+      ];
+
+      const telaEscolha = document.querySelector("#telaEscolha");
+      const telaEstudo = document.querySelector("#telaEstudo");
+      const opcoesEl = document.querySelector("#opcoes");
+      const statusEl = document.querySelector("#status");
+      const simboloClave = document.querySelector("#simboloClave");
+      const cabecaNota = document.querySelector("#cabecaNota");
+      const hasteNota = document.querySelector("#hasteNota");
+      const linhasAuxiliares = document.querySelector("#linhasAuxiliares");
+      const avisoTela = document.querySelector("#avisoTela");
+      const somBtn = document.querySelector("#somBtn");
+
+      let clavesPermitidas = [];
+      let exercicioAtual = null;
+      let respondido = false;
+      let somLigado = true;
+      let wakeLock = null;
+      let audioContext = null;
+
+      const historicoExercicios = [];
+      const intervaloSemRepeticao = 6;
+
+      document.querySelectorAll("[data-claves]").forEach((botao) => {
+        botao.addEventListener("click", async () => {
+          const escolha = botao.dataset.claves;
+
+          clavesPermitidas =
+            escolha === "ambas" ? ["sol", "fa"] : [escolha];
+
+          telaEscolha.classList.add("oculto");
+          telaEstudo.classList.remove("oculto");
+
+          await manterTelaAtiva();
+          novoExercicio();
+        });
+      });
+
+      document.querySelector("#proximaBtn").addEventListener("click", novoExercicio);
+
+      document.querySelector("#voltarBtn").addEventListener("click", async () => {
+        await liberarTelaAtiva();
+        telaEstudo.classList.add("oculto");
+        telaEscolha.classList.remove("oculto");
+      });
+
+      somBtn.addEventListener("click", () => {
+        somLigado = !somLigado;
+        somBtn.textContent = `Som: ${somLigado ? "ligado" : "desligado"}`;
+        somBtn.setAttribute("aria-pressed", String(somLigado));
+      });
+
+      function embaralhar(lista) {
+        const copia = [...lista];
+
+        for (let i = copia.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [copia[i], copia[j]] = [copia[j], copia[i]];
+        }
+
+        return copia;
+      }
+
+      function novoExercicio() {
+        respondido = false;
+        statusEl.textContent = "Escolha o nome da nota.";
+        statusEl.className = "status";
+
+        const combinacoes = clavesPermitidas.flatMap((clave) =>
+          notas.map((nota) => ({ clave, nota }))
+        );
+
+        const recentes = new Set(historicoExercicios);
+
+        let disponiveis = combinacoes.filter(({ clave, nota }) =>
+          !recentes.has(`${clave}-${nota.nome}`)
+        );
+
+        if (disponiveis.length === 0) {
+          historicoExercicios.length = 0;
+          disponiveis = combinacoes;
+        }
+
+        const sorteado =
+          disponiveis[Math.floor(Math.random() * disponiveis.length)];
+
+        exercicioAtual = sorteado;
+
+        historicoExercicios.push(
+          `${sorteado.clave}-${sorteado.nota.nome}`
+        );
+
+        while (historicoExercicios.length > intervaloSemRepeticao) {
+          historicoExercicios.shift();
+        }
+
+        desenharNota(sorteado.clave, sorteado.nota.nome);
+
+        const distratores = embaralhar(
+          notas.filter((item) => item.nome !== sorteado.nota.nome)
+        ).slice(0, 2);
+
+        const respostas = embaralhar([sorteado.nota, ...distratores]);
+
+        opcoesEl.replaceChildren();
+
+        respostas.forEach((resposta) => {
+          const botao = document.createElement("button");
+          botao.type = "button";
+          botao.textContent = resposta.nome;
+          botao.addEventListener("click", () => responder(resposta, botao));
+          opcoesEl.append(botao);
+        });
+      }
+
+      function desenharNota(clave, nome) {
+        simboloClave.textContent = clave === "sol" ? "𝄞" : "𝄢";
+
+        const posicoesSol = {
+          "Mi": 155,
+          "Fá": 142.5,
+          "Sol": 130,
+          "Lá": 117.5,
+          "Si": 105,
+          "Dó": 92.5,
+          "Ré": 80
+        };
+
+        const posicoesFa = {
+          "Sol": 155,
+          "Lá": 142.5,
+          "Si": 130,
+          "Dó": 117.5,
+          "Ré": 105,
+          "Mi": 92.5,
+          "Fá": 80
+        };
+
+        const y = (clave === "sol" ? posicoesSol : posicoesFa)[nome];
+
+        cabecaNota.setAttribute("cy", y);
+
+        hasteNota.setAttribute("y1", y);
+        hasteNota.setAttribute("y2", y < 105 ? y + 50 : y - 50);
+        hasteNota.setAttribute("x1", y < 105 ? 210 : 230);
+        hasteNota.setAttribute("x2", y < 105 ? 210 : 230);
+
+        linhasAuxiliares.replaceChildren();
+
+        if (y < 55 || y > 155) {
+          const linha = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "line"
+          );
+
+          linha.setAttribute("x1", "205");
+          linha.setAttribute("x2", "235");
+          linha.setAttribute("y1", String(y));
+          linha.setAttribute("y2", String(y));
+          linha.setAttribute("stroke", "#d9e2ef");
+          linha.setAttribute("stroke-width", "2");
+
+          linhasAuxiliares.append(linha);
+        }
+      }
+
+      function responder(escolha, botao) {
+        if (respondido) return;
+
+        respondido = true;
+
+        document.querySelectorAll("#opcoes button").forEach((item) => {
+          item.disabled = true;
+        });
+
+        const acertou = escolha.nome === exercicioAtual.nota.nome;
+
+        statusEl.className = `status ${acertou ? "correto" : "incorreto"}`;
+
+        if (acertou) {
+          statusEl.textContent = "Correto! Muito bem!";
+          botao.setAttribute(
+            "aria-label",
+            `${escolha.nome}: resposta correta`
+          );
+          tocarNota(exercicioAtual.nota.som, true);
+        } else {
+          statusEl.textContent =
+            `Não foi dessa vez. A nota correta é ${exercicioAtual.nota.nome}.`;
+
+          const correta = [
+            ...document.querySelectorAll("#opcoes button")
+          ].find((item) => item.textContent === exercicioAtual.nota.nome);
+
+          if (correta) {
+            correta.classList.add("piscar");
+          }
+
+          tocarNota(exercicioAtual.nota.som, false);
+        }
+      }
+
+      function tocarNota(frequencia, correta) {
+        if (!somLigado) return;
+
+        try {
+          const AudioContextClass =
+            window.AudioContext || window.webkitAudioContext;
+
+          if (!AudioContextClass) return;
+
+          audioContext ??= new AudioContextClass();
+
+          if (audioContext.state === "suspended") {
+            audioContext.resume();
+          }
+
+          const oscilador = audioContext.createOscillator();
+          const ganho = audioContext.createGain();
+
+          oscilador.type = "sine";
+          oscilador.frequency.value = frequencia;
+
+          ganho.gain.setValueAtTime(0.0001, audioContext.currentTime);
+          ganho.gain.exponentialRampToValueAtTime(
+            0.18,
+            audioContext.currentTime + 0.025
+          );
+          ganho.gain.exponentialRampToValueAtTime(
+            0.0001,
+            audioContext.currentTime + 0.55
+          );
+
+          oscilador.connect(ganho);
+          ganho.connect(audioContext.destination);
+          oscilador.start();
+          oscilador.stop(audioContext.currentTime + 0.56);
+
+          if (!correta) {
+            setTimeout(() => tocarNota(frequencia, true), 220);
+          }
+        } catch (_) {
+          // O exercício continua funcionando se o dispositivo bloquear o áudio.
+        }
+      }
+
+      async function manterTelaAtiva() {
+        if (!("wakeLock" in navigator)) {
+          avisoTela.textContent =
+            "Este navegador não oferece o recurso para manter a tela ativa.";
+          return;
+        }
+
+        try {
+          wakeLock = await navigator.wakeLock.request("screen");
+          avisoTela.textContent =
+            "Tela ativa enquanto o exercício estiver aberto, se permitido pelo aparelho.";
+
+          wakeLock.addEventListener("release", () => {
+            wakeLock = null;
+          });
+        } catch (_) {
+          avisoTela.textContent =
+            "Não foi possível manter a tela ativa. Verifique as permissões e a economia de bateria.";
+        }
+      }
+
+      async function liberarTelaAtiva() {
+        if (wakeLock) {
+          await wakeLock.release();
+          wakeLock = null;
+        }
+      }
+
+      document.addEventListener("visibilitychange", () => {
+        if (
+          document.visibilityState === "visible" &&
+          !telaEstudo.classList.contains("oculto")
+        ) {
+          manterTelaAtiva();
+        }
+      });
+
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("./sw.js").catch(() => {});
+        });
+      }
+    })();
+  </script>
 </body>
 </html>
