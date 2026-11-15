@@ -1,390 +1,232 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101a2a">
-  <meta name="description" content="Aplicativo para praticar leitura de notas musicais na clave de sol e de fá.">
-  <link rel="manifest" href="./manifest.json">
-  <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <title>Notas Musicais</title>
-
-  <style>
-    :root {
-      color-scheme: dark;
-      font-family: system-ui, sans-serif;
-      background: #101a2a;
-      color: #f5f7fb;
-      font-synthesis: none;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      padding: 20px;
-      display: grid;
-      place-items: center;
-    }
-
-    .app {
-      width: min(100%, 680px);
-      padding: 28px;
-      border: 1px solid #324258;
-      border-radius: 24px;
-      background: #18263a;
-      box-shadow: 0 20px 60px #0005;
-      text-align: center;
-    }
-
-    h1 { margin: 0 0 8px; }
-    .subtitulo { margin: 0 0 24px; color: #bac8da; }
-
-    .botoes, .opcoes {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 12px;
-    }
-
-    button {
-      min-height: 48px;
-      padding: 12px 18px;
-      border: 1px solid #526681;
-      border-radius: 12px;
-      background: #24364d;
-      color: inherit;
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
-      touch-action: manipulation;
-    }
-
-    button:hover { background: #304762; }
-    button:focus-visible { outline: 3px solid #f6c85f; outline-offset: 3px; }
-    button:disabled { cursor: default; opacity: .65; }
-
-    .primario { background: #176b61; border-color: #39a693; }
-    .primario:hover { background: #218477; }
-
-    .oculto { display: none !important; }
-
-    .selecao button { min-width: 130px; }
-
-    .painel {
-      margin-top: 20px;
-      padding: 18px;
-      border: 1px solid #324258;
-      border-radius: 18px;
-      background: #111d2d;
-    }
-
-    .pentagrama {
-      display: block;
-      width: 100%;
-      height: auto;
-      max-height: 260px;
-      margin: 0 auto;
-    }
-
-    .opcoes { margin-top: 18px; }
-    .opcoes button { min-width: 105px; font-size: 1.15rem; }
-
-    .status {
-      min-height: 34px;
-      margin: 16px 0 0;
-      font-weight: 700;
-    }
-
-    .status.correto { color: #6ee7a8; }
-    .status.incorreto { color: #ff8080; }
-
-    .controles {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-top: 18px;
-    }
-
-    .controles button { flex: 1; }
-    .seta { font-size: 1.5rem; }
-
-    .rodape {
-      margin: 18px 0 0;
-      color: #bac8da;
-      font-size: .9rem;
-    }
-
-    @keyframes piscar {
-      50% { opacity: .15; }
-    }
-
-    .piscar { animation: piscar .35s ease-in-out 6; }
-
-    @media (max-width: 480px) {
-      body { padding: 12px; }
-      .app { padding: 22px 16px; }
-      .controles { flex-direction: column; }
-      .controles button { width: 100%; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e3a5f">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Notas Musicais</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1f33;color:#f1f5f9}
+body{display:flex;flex-direction:column;min-height:100dvh}
+header{text-align:center;padding:10px 12px;font-size:14px;letter-spacing:.5px;background:#1e3a5f;color:#cbd5e1}
+header b{color:#fff}
+.screen{display:none;flex:1;padding:16px}
+.screen.active{display:flex}
+#home{flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center}
+#home h1{margin:0 0 4px;font-size:26px}
+#home p{margin:0 0 10px;color:#94a3b8}
+.big{width:100%;max-width:340px;padding:18px;border:0;border-radius:16px;font-size:20px;font-weight:600;background:#2563eb;color:#fff;cursor:pointer}
+.big small{display:block;font-weight:400;font-size:13px;opacity:.85;margin-top:4px}
+.big:active{transform:scale(.97)}
+.big.alt{background:#7c3aed}.big.both{background:#0d9488}
+#study{flex-direction:row;gap:8px;padding:10px}
+#main{flex:1;display:flex;flex-direction:column;align-items:center;gap:12px;min-width:0}
+.bar{width:100%;max-width:480px;display:flex;justify-content:space-between;align-items:center;font-size:14px;color:#94a3b8}
+.link{background:none;border:1px solid #475569;color:#cbd5e1;border-radius:10px;padding:6px 10px;font-size:13px;cursor:pointer}
+.paper{width:100%;max-width:480px;background:#fffdf7;border-radius:16px;padding:6px}
+.paper svg{width:100%;height:auto;display:block}
+.lamps{display:flex;gap:28px;align-items:center;justify-content:center}
+.lamp{width:44px;height:44px;border-radius:50%;background:#334155;border:3px solid #1e293b;transition:all .15s}
+.lamp.g.on{background:#22c55e;box-shadow:0 0 28px 8px #22c55e99;border-color:#bbf7d0}
+.lamp.r.on{background:#ef4444;box-shadow:0 0 28px 8px #ef444499;border-color:#fecaca}
+#msg{min-height:24px;font-size:18px;font-weight:600;text-align:center}
+.opts{width:100%;max-width:480px;display:flex;gap:10px}
+.opt{flex:1;padding:22px 4px;font-size:24px;font-weight:700;border-radius:14px;border:3px solid #475569;background:#fff;color:#0f172a;cursor:pointer}
+.opt:disabled{cursor:default}
+.opt.wrong{background:#ef4444;border-color:#b91c1c;color:#fff}
+.opt.correct{background:#22c55e;border-color:#15803d;color:#fff}
+.opt.blink{animation:blink .5s 3}
+@keyframes blink{0%,100%{background:#fff;color:#0f172a}50%{background:#22c55e;color:#fff}}
+#nextCol{display:flex;align-items:center}
+#next{width:52px;height:120px;border:0;border-radius:26px;background:#2563eb;color:#fff;font-size:34px;cursor:pointer}
+#next.ready{animation:pulse 1.2s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 8px #2563eb55}}
+</style>
 </head>
-
 <body>
-  <main class="app">
-    <h1>Notas Musicais</h1>
-    <p class="subtitulo">Pratique a leitura das notas no pentagrama.</p>
+<header><b>Feito com Claude</b></header>
 
-    <section id="telaEscolha" class="selecao" aria-labelledby="tituloEscolha">
-      <h2 id="tituloEscolha">Quais claves deseja estudar?</h2>
-      <div class="botoes">
-        <button type="button" data-claves="sol">Clave de sol</button>
-        <button type="button" data-claves="fa">Clave de fá</button>
-        <button type="button" data-claves="ambas">Ambas</button>
-      </div>
-      <p class="rodape">A tela ativa pode depender do navegador e das configurações do aparelho.</p>
-    </section>
+<section id="home" class="screen active">
+  <h1>🎼 Notas Musicais</h1>
+  <p>Qual clave você quer estudar?</p>
+  <button class="big" data-clef="treble">Clave de Sol<small>Notas agudas</small></button>
+  <button class="big alt" data-clef="bass">Clave de Fá<small>Notas graves</small></button>
+  <button class="big both" data-clef="both">Ambas<small>Sol e Fá misturadas</small></button>
+</section>
 
-    <section id="telaEstudo" class="oculto" aria-label="Exercício de leitura musical">
-      <div class="painel">
-        <svg id="pentagrama" class="pentagrama" viewBox="0 0 360 220"
-             role="img" aria-label="Pentagrama com uma nota musical">
-          <g stroke="#d9e2ef" stroke-width="2">
-            <line x1="45" y1="55" x2="325" y2="55"></line>
-            <line x1="45" y1="80" x2="325" y2="80"></line>
-            <line x1="45" y1="105" x2="325" y2="105"></line>
-            <line x1="45" y1="130" x2="325" y2="130"></line>
-            <line x1="45" y1="155" x2="325" y2="155"></line>
-          </g>
-          <text id="simboloClave" x="57" y="142" fill="#f6c85f"
-                font-size="94" font-family="serif"></text>
-          <g id="linhasAuxiliares" stroke="#d9e2ef" stroke-width="2"></g>
-          <ellipse id="cabecaNota" cx="220" cy="105" rx="11" ry="8"
-                   fill="#ffffff" stroke="#ffffff" stroke-width="2"
-                   transform="rotate(-20 220 105)"></ellipse>
-          <line id="hasteNota" x1="230" y1="105" x2="230" y2="55"
-                stroke="#ffffff" stroke-width="2.5"></line>
-        </svg>
+<section id="study" class="screen">
+  <div id="main">
+    <div class="bar"><button class="link" id="back">← Trocar clave</button><span id="score">0 / 0</span></div>
+    <div class="paper" id="paper"></div>
+    <div class="lamps"><div class="lamp r" id="lr"></div><div class="lamp g" id="lg"></div></div>
+    <div id="msg">Qual é esta nota?</div>
+    <div class="opts" id="opts"></div>
+  </div>
+  <div id="nextCol"><button id="next" aria-label="Próxima nota">›</button></div>
+</section>
 
-        <p id="status" class="status" aria-live="polite">Escolha o nome da nota.</p>
-        <div id="opcoes" class="opcoes"></div>
-      </div>
+<script>
+const NAMES=['Dó','Ré','Mi','Fá','Sol','Lá','Si'];
+const SEMI=[0,2,4,5,7,9,11];
+// n = oitava*7 + índice da nota (Dó=0)
+const CLEFS={treble:{base:30,min:28,max:40},bass:{base:18,min:16,max:28}};
+const BOTTOM=118;
 
-      <div class="controles">
-        <button id="somBtn" type="button" aria-pressed="true">Som: ligado</button>
-        <button id="voltarBtn" type="button">Trocar clave</button>
-        <button id="proximaBtn" type="button" class="primario" aria-label="Próxima nota">
-          Próxima nota <span class="seta" aria-hidden="true">➜</span>
-        </button>
-      </div>
-      <p id="avisoTela" class="rodape" aria-live="polite"></p>
-    </section>
-  </main>
+// ---------- Tela sempre ligada ----------
+let wl=null;
+async function lock(){
+  try{
+    if('wakeLock' in navigator && !wl){
+      wl=await navigator.wakeLock.request('screen');
+      wl.addEventListener('release',()=>{wl=null});
+    }
+  }catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')lock()});
+['pointerdown','keydown','touchstart'].forEach(ev=>document.addEventListener(ev,lock,{passive:true}));
+lock();
 
-  <script>
-    (() => {
-      const notas = [
-        { nome: "Dó", som: 261.63 },
-        { nome: "Ré", som: 293.66 },
-        { nome: "Mi", som: 329.63 },
-        { nome: "Fá", som: 349.23 },
-        { nome: "Sol", som: 392.00 },
-        { nome: "Lá", som: 440.00 },
-        { nome: "Si", som: 493.88 }
-      ];
+// ---------- Áudio ----------
+let ac=null;
+function audio(){
+  if(!ac){const A=window.AudioContext||window.webkitAudioContext;if(A)ac=new A();}
+  if(ac&&ac.state==='suspended')ac.resume();
+  return ac;
+}
+function play(n){
+  const a=audio(); if(!a)return;
+  const midi=12*(Math.floor(n/7)+1)+SEMI[n%7];
+  const f=440*Math.pow(2,(midi-69)/12);
+  const t=a.currentTime, g=a.createGain();
+  g.gain.setValueAtTime(0,t);
+  g.gain.linearRampToValueAtTime(.5,t+.02);
+  g.gain.exponentialRampToValueAtTime(.001,t+1.4);
+  g.connect(a.destination);
+  [[ 'triangle',f,1],['sine',f*2,.25]].forEach(([type,fr,v])=>{
+    const o=a.createOscillator(),og=a.createGain();
+    o.type=type;o.frequency.value=fr;og.gain.value=v;
+    o.connect(og);og.connect(g);o.start(t);o.stop(t+1.5);
+  });
+}
 
-      const telaEscolha = document.querySelector("#telaEscolha");
-      const telaEstudo = document.querySelector("#telaEstudo");
-      const opcoesEl = document.querySelector("#opcoes");
-      const statusEl = document.querySelector("#status");
-      const simboloClave = document.querySelector("#simboloClave");
-      const cabecaNota = document.querySelector("#cabecaNota");
-      const hasteNota = document.querySelector("#hasteNota");
-      const linhasAuxiliares = document.querySelector("#linhasAuxiliares");
-      const avisoTela = document.querySelector("#avisoTela");
-      const somBtn = document.querySelector("#somBtn");
+// ---------- Estado ----------
+let pool=[],counts={},history=[],cur=null,locked=false,hits=0,total=0;
+const $=id=>document.getElementById(id);
 
-      let clavesPermitidas = [];
-      let exercicioAtual = null;
-      let respondido = false;
-      let somLigado = true;
-      let wakeLock = null;
-      let audioContext = null;
+function buildPool(mode){
+  pool=[];counts={};history=[];
+  (mode==='both'?['treble','bass']:[mode]).forEach(cl=>{
+    for(let n=CLEFS[cl].min;n<=CLEFS[cl].max;n++){
+      const key=cl+n;pool.push({clef:cl,n,key,idx:n%7});counts[key]=0;
+    }
+  });
+}
 
-      document.querySelectorAll("[data-claves]").forEach((botao) => {
-        botao.addEventListener("click", async () => {
-          const escolha = botao.dataset.claves;
-          clavesPermitidas = escolha === "ambas" ? ["sol", "fa"] : [escolha];
-          telaEscolha.classList.add("oculto");
-          telaEstudo.classList.remove("oculto");
-          await manterTelaAtiva();
-          novoExercicio();
-        });
-      });
+function pick(){
+  const K=Math.min(10,pool.length-1);
+  const recentKeys=history.slice(-K).map(h=>h.key);
+  const recentNames=history.slice(-2).map(h=>h.idx);
+  const tries=[
+    p=>!recentKeys.includes(p.key)&&!recentNames.includes(p.idx),
+    p=>!recentKeys.includes(p.key)&&!(history.length&&p.idx===history[history.length-1].idx),
+    p=>!recentKeys.includes(p.key),
+    p=>!(history.length&&p.key===history[history.length-1].key),
+    ()=>true
+  ];
+  let cand=[];
+  for(const f of tries){cand=pool.filter(f);if(cand.length)break;}
+  const w=cand.map(p=>1/(1+counts[p.key]));
+  let r=Math.random()*w.reduce((a,b)=>a+b,0);
+  for(let i=0;i<cand.length;i++){r-=w[i];if(r<=0)return cand[i];}
+  return cand[cand.length-1];
+}
 
-      document.querySelector("#proximaBtn").addEventListener("click", novoExercicio);
+// ---------- Desenho ----------
+function staffSVG(clef,n){
+  const y=BOTTOM-(n-CLEFS[clef].base)*6, cx=205;
+  let s='<g stroke="#111" stroke-width="1.6">';
+  for(let i=0;i<5;i++)s+=`<line x1="10" x2="330" y1="${70+i*12}" y2="${70+i*12}"/>`;
+  for(let ly=130;ly<=y+1;ly+=12)s+=`<line x1="${cx-15}" x2="${cx+15}" y1="${ly}" y2="${ly}"/>`;
+  for(let ly=58;ly>=y-1;ly-=12)s+=`<line x1="${cx-15}" x2="${cx+15}" y1="${ly}" y2="${ly}"/>`;
+  s+='</g>';
+  if(clef==='treble'){
+    s+=`<g transform="translate(28 70) scale(1.2)" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M -4 50 C -3 58 6 56 5 47 C 3 30 1 10 1 -2 C 1 -12 4 -17 7 -15 C 11 -12 6 -2 -4 6 C -12 13 -11 28 -2 33 C 6 37 13 30 10 22 C 7 16 -2 17 -2 25 C -2 29 3 30 4 26"/></g>`;
+  }else{
+    s+=`<g transform="translate(42 70) scale(1.2)" stroke="#111" stroke-linecap="round"><path d="M -8 10 C -8 -2 8 -4 12 6 C 14 18 4 30 -12 40" fill="none" stroke-width="3.2"/><circle cx="-8" cy="10" r="3.6" fill="#111"/><circle cx="17" cy="5" r="2" fill="#111"/><circle cx="17" cy="15" r="2" fill="#111"/></g>`;
+  }
+  s+=`<ellipse cx="${cx}" cy="${y}" rx="8" ry="5.6" fill="#111" transform="rotate(-20 ${cx} ${y})"/>`;
+  s+= y>=94
+    ? `<line x1="${cx-7.5}" x2="${cx-7.5}" y1="${y}" y2="${y+38}" stroke="#111" stroke-width="1.8"/>`
+    : `<line x1="${cx+7.5}" x2="${cx+7.5}" y1="${y}" y2="${y-38}" stroke="#111" stroke-width="1.8"/>`;
+  return `<svg viewBox="0 25 340 130" role="img" aria-label="Pentagrama">${s}</svg>`;
+}
 
-      document.querySelector("#voltarBtn").addEventListener("click", async () => {
-        await liberarTelaAtiva();
-        telaEstudo.classList.add("oculto");
-        telaEscolha.classList.remove("oculto");
-      });
+// ---------- Fluxo ----------
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
-      somBtn.addEventListener("click", () => {
-        somLigado = !somLigado;
-        somBtn.textContent = `Som: ${somLigado ? "ligado" : "desligado"}`;
-        somBtn.setAttribute("aria-pressed", String(somLigado));
-      });
+function nextNote(){
+  cur=pick();counts[cur.key]++;history.push(cur);if(history.length>50)history.shift();
+  locked=false;
+  $('paper').innerHTML=staffSVG(cur.clef,cur.n);
+  $('lr').classList.remove('on');$('lg').classList.remove('on');
+  $('msg').textContent='Qual é esta nota?';
+  $('next').classList.remove('ready');
+  const others=shuffle([0,1,2,3,4,5,6].filter(i=>i!==cur.idx)).slice(0,2);
+  const opts=shuffle([cur.idx,...others]);
+  $('opts').innerHTML='';
+  opts.forEach(i=>{
+    const b=document.createElement('button');
+    b.className='opt';b.textContent=NAMES[i];b.dataset.i=i;
+    b.onclick=()=>answer(i,b);
+    $('opts').appendChild(b);
+  });
+}
 
-      function embaralhar(lista) {
-        const copia = [...lista];
-        for (let i = copia.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [copia[i], copia[j]] = [copia[j], copia[i]];
-        }
-        return copia;
-      }
+function answer(i,btn){
+  if(locked)return;locked=true;total++;
+  const ok=i===cur.idx;
+  play(cur.n);
+  const correctBtn=[...document.querySelectorAll('.opt')].find(b=>+b.dataset.i===cur.idx);
+  if(ok){
+    hits++;btn.classList.add('correct');
+    $('lg').classList.add('on');
+    $('msg').textContent='✔ Correto! É '+NAMES[cur.idx];
+  }else{
+    btn.classList.add('wrong');
+    correctBtn.classList.add('correct','blink');
+    $('lr').classList.add('on');
+    $('msg').textContent='✘ Era '+NAMES[cur.idx];
+  }
+  document.querySelectorAll('.opt').forEach(b=>b.disabled=true);
+  $('score').textContent=hits+' / '+total;
+  $('next').classList.add('ready');
+}
 
-      function novoExercicio() {
-        respondido = false;
-        statusEl.textContent = "Escolha o nome da nota.";
-        statusEl.className = "status";
+function start(mode){
+  audio();lock();
+  buildPool(mode);hits=0;total=0;$('score').textContent='0 / 0';
+  $('home').classList.remove('active');$('study').classList.add('active');
+  nextNote();
+}
 
-        const clave = clavesPermitidas[Math.floor(Math.random() * clavesPermitidas.length)];
-        const nota = notas[Math.floor(Math.random() * notas.length)];
-        exercicioAtual = { clave, nota };
+document.querySelectorAll('[data-clef]').forEach(b=>b.onclick=()=>start(b.dataset.clef));
+$('next').onclick=()=>{audio();nextNote();};
+$('back').onclick=()=>{$('study').classList.remove('active');$('home').classList.add('active');};
+document.addEventListener('keydown',e=>{
+  if(!$('study').classList.contains('active'))return;
+  if(e.key==='ArrowRight'||e.key==='Enter')nextNote();
+  const k=parseInt(e.key);
+  if(k>=1&&k<=3){const b=$('opts').children[k-1];if(b)b.click();}
+});
 
-        desenharNota(clave, nota.nome);
-
-        const distratores = embaralhar(notas.filter((item) => item.nome !== nota.nome)).slice(0, 2);
-        const respostas = embaralhar([nota, ...distratores]);
-
-        opcoesEl.replaceChildren();
-        respostas.forEach((resposta) => {
-          const botao = document.createElement("button");
-          botao.type = "button";
-          botao.textContent = resposta.nome;
-          botao.addEventListener("click", () => responder(resposta, botao));
-          opcoesEl.append(botao);
-        });
-      }
-
-      function desenharNota(clave, nome) {
-        simboloClave.textContent = clave === "sol" ? "𝄞" : "𝄢";
-
-        const posicoesSol = { "Mi": 155, "Fá": 142.5, "Sol": 130, "Lá": 117.5, "Si": 105, "Dó": 92.5, "Ré": 80 };
-        const posicoesFa = { "Sol": 155, "Lá": 142.5, "Si": 130, "Dó": 117.5, "Ré": 105, "Mi": 92.5, "Fá": 80 };
-        const y = (clave === "sol" ? posicoesSol : posicoesFa)[nome];
-
-        cabecaNota.setAttribute("cy", y);
-        hasteNota.setAttribute("y1", y);
-        hasteNota.setAttribute("y2", y < 105 ? y + 50 : y - 50);
-        hasteNota.setAttribute("x1", y < 105 ? 210 : 230);
-        hasteNota.setAttribute("x2", y < 105 ? 210 : 230);
-
-        linhasAuxiliares.replaceChildren();
-        if (y < 55 || y > 155) {
-          const linha = document.createElementNS("http://www.w3.org/2000/svg", "line");
-          linha.setAttribute("x1", "205");
-          linha.setAttribute("x2", "235");
-          linha.setAttribute("y1", String(y));
-          linha.setAttribute("y2", String(y));
-          linha.setAttribute("stroke", "#d9e2ef");
-          linha.setAttribute("stroke-width", "2");
-          linhasAuxiliares.append(linha);
-        }
-      }
-
-      function responder(escolha, botao) {
-        if (respondido) return;
-        respondido = true;
-
-        document.querySelectorAll("#opcoes button").forEach((item) => {
-          item.disabled = true;
-        });
-
-        const acertou = escolha.nome === exercicioAtual.nota.nome;
-        statusEl.className = `status ${acertou ? "correto" : "incorreto"}`;
-
-        if (acertou) {
-          statusEl.textContent = "Correto! Muito bem!";
-          botao.setAttribute("aria-label", `${escolha.nome}: resposta correta`);
-          tocarNota(exercicioAtual.nota.som, true);
-        } else {
-          statusEl.textContent = `Não foi dessa vez. A nota correta é ${exercicioAtual.nota.nome}.`;
-          const correta = [...document.querySelectorAll("#opcoes button")]
-            .find((item) => item.textContent === exercicioAtual.nota.nome);
-          if (correta) correta.classList.add("piscar");
-          tocarNota(exercicioAtual.nota.som, false);
-        }
-      }
-
-      function tocarNota(frequencia, correta) {
-        if (!somLigado) return;
-        try {
-          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-          if (!AudioContextClass) return;
-          audioContext ??= new AudioContextClass();
-          if (audioContext.state === "suspended") audioContext.resume();
-
-          const oscilador = audioContext.createOscillator();
-          const ganho = audioContext.createGain();
-          oscilador.type = "sine";
-          oscilador.frequency.value = frequencia;
-          ganho.gain.setValueAtTime(0.0001, audioContext.currentTime);
-          ganho.gain.exponentialRampToValueAtTime(0.18, audioContext.currentTime + 0.025);
-          ganho.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.55);
-          oscilador.connect(ganho);
-          ganho.connect(audioContext.destination);
-          oscilador.start();
-          oscilador.stop(audioContext.currentTime + 0.56);
-
-          if (!correta) {
-            setTimeout(() => tocarNota(frequencia, true), 220);
-          }
-        } catch (_) {
-          // O exercício continua funcionando mesmo se o dispositivo bloquear o áudio.
-        }
-      }
-
-      async function manterTelaAtiva() {
-        if (!("wakeLock" in navigator)) {
-          avisoTela.textContent = "Este navegador não oferece o recurso para manter a tela ativa.";
-          return;
-        }
-
-        try {
-          wakeLock = await navigator.wakeLock.request("screen");
-          avisoTela.textContent = "Tela ativa enquanto o exercício estiver aberto, se permitido pelo aparelho.";
-          wakeLock.addEventListener("release", () => {
-            wakeLock = null;
-          });
-        } catch (_) {
-          avisoTela.textContent = "Não foi possível manter a tela ativa. Verifique as permissões e a economia de bateria.";
-        }
-      }
-
-      async function liberarTelaAtiva() {
-        if (wakeLock) {
-          await wakeLock.release();
-          wakeLock = null;
-        }
-      }
-
-      document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible" && !telaEstudo.classList.contains("oculto")) {
-          manterTelaAtiva();
-        }
-      });
-
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker.register("./sw.js").catch(() => {});
-        });
-      }
-    })();
-  </script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
 </body>
 </html>
